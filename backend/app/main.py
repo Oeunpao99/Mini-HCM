@@ -8,6 +8,14 @@ from app.core.seed import seed_default_data
 from app.db.base import *  # noqa: F401,F403
 from app.db.session import Base, SessionLocal, engine
 
+cors_origins = [
+    origin.strip()
+    for origin in settings.backend_cors_origins.split(",")
+    if origin.strip()
+]
+if not cors_origins:
+    cors_origins = ["*"]
+
 Base.metadata.create_all(bind=engine)
 ensure_runtime_schema(engine)
 
@@ -21,8 +29,8 @@ app = FastAPI(title=settings.app_name)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_credentials="*" not in cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -39,3 +47,8 @@ app.include_router(hris.router)
 @app.get("/")
 def root():
     return {"message": "Attendance API is running"}
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}

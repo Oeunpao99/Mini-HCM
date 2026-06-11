@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     secret_key: str = "change-this-secret"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 1440
+    backend_cors_origins: str = "*"
 
     checkin_start_time: str = "06:00"
     checkin_end_time: str = "23:00"
