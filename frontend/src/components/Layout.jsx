@@ -23,14 +23,14 @@ const staffNavItems = [
     icon: <BiSolidTimeFive className="h-5 w-5" aria-hidden />,
   },
   {
-    to: "/requests",
-    label: "Request",
-    icon: <FiCheckSquare className="h-5 w-5" aria-hidden />,
-  },
-  {
     to: "/payslips",
     label: "Payslip",
     icon: <FiCreditCard className="h-5 w-5" aria-hidden />,
+  },
+  {
+    to: "/report",
+    label: "Report",
+    icon: <BsFillClipboardDataFill className="h-5 w-5" aria-hidden />,
   },
   {
     to: "/profile",
@@ -108,9 +108,9 @@ const Layout = ({ children }) => {
               <FiUsers className="h-6 w-6" aria-hidden />
             </div>
             <div>
-              <p className="text-xl font-extrabold leading-none">HRIS</p>
+              <p className="text-xl font-extrabold leading-none">HCM App</p>
               <p className="mt-1 text-xs font-semibold leading-tight text-white/65">
-                Human Resource Information System
+                Human Capital Management
               </p>
             </div>
           </div>

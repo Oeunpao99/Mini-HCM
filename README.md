@@ -193,3 +193,53 @@ Notes:
 
 - Docker Compose provides PostgreSQL and overrides `DATABASE_URL` inside the backend container.
 - The `database.sql` file may contain MySQL-specific syntax. If import fails, let SQLAlchemy create tables via `python run.py` inside the backend container.
+
+## Docker Compose (Production)
+
+A production compose file is provided for hosting with:
+
+- PostgreSQL on the private Docker network
+- FastAPI backend without reload
+- React frontend built as static files and served by Nginx
+- Nginx proxying `/api` requests to the backend container
+
+1. Create a production environment file:
+
+```bash
+copy env.production.example env.production
+```
+
+Edit `env.production` and set strong values for:
+
+- `POSTGRES_PASSWORD`
+- `SECRET_KEY`
+- `BACKEND_CORS_ORIGINS`, for example `https://your-domain.com`
+
+2. Build and start production services:
+
+```bash
+docker compose --env-file env.production -f docker-compose.prod.yml up --build -d
+```
+
+3. Open the hosted app:
+
+- Frontend/Nginx: `http://localhost` or your server domain
+- Backend health endpoint through Docker: `/api` is proxied internally
+
+4. View logs:
+
+```bash
+docker compose --env-file env.production -f docker-compose.prod.yml logs -f
+```
+
+5. Stop services:
+
+```bash
+docker compose --env-file env.production -f docker-compose.prod.yml down
+```
+
+Production notes:
+
+- Do not expose PostgreSQL or the backend directly unless your hosting setup requires it.
+- Put HTTPS in front of this stack with your host provider, load balancer, Caddy, Traefik, or Nginx reverse proxy.
+- Leave `VITE_API_URL` empty when frontend and API are served from the same domain.

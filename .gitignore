@@ -105,6 +105,7 @@ reports/
 .env.local
 docker-compose.override.yml
 docker-compose.*.yml
+!docker-compose.prod.yml
 
 # Local system files
 Thumbs.db

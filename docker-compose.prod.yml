@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-attendance_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in env.production}
+      POSTGRES_DB: ${POSTGRES_DB:-attendance_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-attendance_user} -d ${POSTGRES_DB:-attendance_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-attendance_user}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in env.production}@db:5432/${POSTGRES_DB:-attendance_db}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in env.production}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-*}
+      CHECKIN_START_TIME: ${CHECKIN_START_TIME:-06:00}
+      CHECKIN_END_TIME: ${CHECKIN_END_TIME:-23:00}
+      CHECKOUT_MIN_TIME: ${CHECKOUT_MIN_TIME:-16:00}
+      STANDARD_CHECKIN_TIME: ${STANDARD_CHECKIN_TIME:-08:00}
+      STANDARD_CHECKOUT_TIME: ${STANDARD_CHECKOUT_TIME:-17:30}
+      AUTO_CHECKOUT_TIME: ${AUTO_CHECKOUT_TIME:-23:59}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        VITE_API_URL: ${VITE_API_URL:-}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:

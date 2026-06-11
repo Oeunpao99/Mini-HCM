@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { FiChevronLeft, FiChevronRight, FiLogIn, FiLogOut } from "react-icons/fi";
+import {
+  FiAlertTriangle,
+  FiCheckCircle,
+  FiChevronLeft,
+  FiChevronRight,
+  FiClock,
+  FiFileText,
+  FiLogIn,
+  FiLogOut,
+  FiMapPin,
+} from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
@@ -34,6 +44,18 @@ const formatTime = (value) => {
 
 const getCheckIn = (item) => item.check_in_time || item.check_in;
 const getCheckOut = (item) => item.check_out_time || item.check_out;
+
+const compactNumber = (value) =>
+  Number(value || 0).toLocaleString(undefined, {
+    maximumFractionDigits: 1,
+  });
+
+const mapUrl = (lat, lon) => {
+  if (lat === undefined || lat === null || lon === undefined || lon === null) {
+    return "";
+  }
+  return `https://www.google.com/maps?q=${lat},${lon}`;
+};
 
 const getStatus = (item) => {
   if (item.status) return String(item.status).toUpperCase();
@@ -76,7 +98,80 @@ const ScanTime = ({ icon: Icon, value, muted }) => (
   </span>
 );
 
-const AttendanceRow = ({ item }) => {
+const DetailItem = ({ icon: Icon, label, value }) => (
+  <div className="min-w-0 rounded-lg bg-slate-50 p-3">
+    <div className="flex items-center gap-2 text-xs font-extrabold uppercase text-slate-400">
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      <span className="truncate">{label}</span>
+    </div>
+    <p className="mt-1 break-words text-sm font-extrabold text-slate-900">
+      {value || "---"}
+    </p>
+  </div>
+);
+
+const approvalText = (item) => {
+  if (!item.requires_manager_approval) return "Not required";
+  if (item.manager_approved === null || item.manager_approved === undefined) {
+    return "Pending";
+  }
+  return item.manager_approved ? "Approved" : "Rejected";
+};
+
+const AttendanceDetail = ({ item }) => {
+  const checkInMap = mapUrl(item.check_in_lat, item.check_in_lon);
+  const checkOutMap = mapUrl(item.check_out_lat, item.check_out_lon);
+
+  return (
+    <section className="rounded-lg border border-blue-100 bg-white p-4 shadow-sm">
+      <div className="grid gap-2 sm:grid-cols-2">
+        <DetailItem icon={FiLogIn} label="Check In" value={formatTime(getCheckIn(item))} />
+        <DetailItem icon={FiLogOut} label="Check Out" value={formatTime(getCheckOut(item))} />
+        <DetailItem icon={FiClock} label="Worked Hours" value={`${compactNumber(item.worked_hours)}h`} />
+        <DetailItem icon={FiAlertTriangle} label="Late" value={item.is_late ? "Yes" : "No"} />
+        <DetailItem icon={FiClock} label="Early Checkout" value={item.is_early_checkout ? "Yes" : "No"} />
+        <DetailItem icon={FiCheckCircle} label="Flexible Scan" value={item.flexible || item.flexible_scan ? "Yes" : "No"} />
+        <DetailItem icon={FiCheckCircle} label="Approval" value={approvalText(item)} />
+        <DetailItem icon={FiFileText} label="Reason" value={item.needs_approval_reason} />
+      </div>
+
+      {(checkInMap || checkOutMap) && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {checkInMap && (
+            <a
+              href={checkInMap}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-9 items-center gap-2 rounded-lg bg-blue-50 px-3 text-xs font-extrabold text-blue-700 hover:bg-blue-100"
+            >
+              <FiMapPin className="h-4 w-4" aria-hidden />
+              Check-in map
+            </a>
+          )}
+          {checkOutMap && (
+            <a
+              href={checkOutMap}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-9 items-center gap-2 rounded-lg bg-blue-50 px-3 text-xs font-extrabold text-blue-700 hover:bg-blue-100"
+            >
+              <FiMapPin className="h-4 w-4" aria-hidden />
+              Check-out map
+            </a>
+          )}
+        </div>
+      )}
+
+      {item.remark && (
+        <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm font-semibold leading-6 text-slate-600">
+          {item.remark}
+        </div>
+      )}
+    </section>
+  );
+};
+
+const AttendanceRow = ({ item, expanded, onToggle }) => {
   const dayDate = toDate(item.date);
   const status = getStatus(item);
   const checkIn = getCheckIn(item);
@@ -88,40 +183,55 @@ const AttendanceRow = ({ item }) => {
     (item.is_late ? "Late" : "");
 
   return (
-    <article className="grid min-h-[80px] grid-cols-[54px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-white px-4 py-3 shadow-sm md:min-h-[78px] md:grid-cols-[64px_minmax(0,1fr)_auto] md:px-6">
-      <div className="border-r border-slate-100 pr-3">
-        <div className="text-2xl font-extrabold leading-7 text-black">
-          {dayDate?.getDate()}
-        </div>
-        <div className="mt-0.5 text-xs font-bold text-slate-500">
-          {dayDate?.toLocaleDateString(undefined, { weekday: "short" })}
-        </div>
-      </div>
-
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <ScanTime icon={FiLogIn} value={checkIn} muted={isEmpty} />
-          <ScanTime icon={FiLogOut} value={checkOut} muted={isEmpty} />
-        </div>
-
-        {(lateText || item.flexible || item.flexible_scan) && (
-          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs font-bold">
-            {lateText && (
-              <span className="text-amber-600">
-                {String(lateText).startsWith("Late")
-                  ? lateText
-                  : `Late ${lateText}`}
-              </span>
-            )}
-            {(item.flexible || item.flexible_scan) && (
-              <span className="text-blue-600">on Flexible</span>
-            )}
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`grid min-h-[80px] w-full grid-cols-[54px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-white px-4 py-3 text-left shadow-sm transition md:min-h-[78px] md:grid-cols-[64px_minmax(0,1fr)_auto] md:px-6 ${
+          expanded ? "ring-2 ring-blue-500" : "hover:bg-slate-50"
+        }`}
+      >
+        <div className="border-r border-slate-100 pr-3">
+          <div className="text-2xl font-extrabold leading-7 text-black">
+            {dayDate?.getDate()}
           </div>
-        )}
-      </div>
+          <div className="mt-0.5 text-xs font-bold text-slate-500">
+            {dayDate?.toLocaleDateString(undefined, { weekday: "short" })}
+          </div>
+        </div>
 
-      <StatusPill status={status} />
-    </article>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <ScanTime icon={FiLogIn} value={checkIn} muted={isEmpty} />
+            <ScanTime icon={FiLogOut} value={checkOut} muted={isEmpty} />
+          </div>
+
+          {(lateText || item.flexible || item.flexible_scan) && (
+            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs font-bold">
+              {lateText && (
+                <span className="text-amber-600">
+                  {String(lateText).startsWith("Late")
+                    ? lateText
+                    : `Late ${lateText}`}
+                </span>
+              )}
+              {(item.flexible || item.flexible_scan) && (
+                <span className="text-blue-600">on Flexible</span>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col items-end gap-1">
+          <StatusPill status={status} />
+          <span className="text-[10px] font-bold text-slate-400">
+            {expanded ? "Hide" : "Detail"}
+          </span>
+        </div>
+      </button>
+
+      {expanded && <AttendanceDetail item={item} />}
+    </div>
   );
 };
 
@@ -130,6 +240,7 @@ export default function AttendancePage() {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const [records, setRecords] = useState([]);
+  const [selectedDate, setSelectedDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [unauthenticated, setUnauthenticated] = useState(false);
   const navigate = useNavigate();
@@ -156,6 +267,7 @@ export default function AttendancePage() {
 
   useEffect(() => {
     void load();
+    setSelectedDate("");
   }, [month, year]);
 
   const items = useMemo(() => {
@@ -252,7 +364,18 @@ export default function AttendancePage() {
 
         {!loading &&
           !unauthenticated &&
-          items.map((item) => <AttendanceRow key={item.date} item={item} />)}
+          items.map((item) => (
+            <AttendanceRow
+              key={item.date}
+              item={item}
+              expanded={selectedDate === item.date}
+              onToggle={() =>
+                setSelectedDate((current) =>
+                  current === item.date ? "" : item.date,
+                )
+              }
+            />
+          ))}
       </main>
     </div>
   );

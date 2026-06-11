@@ -270,8 +270,8 @@ const DashboardPage = () => {
   const bottomLabel = hasCheckedIn
     ? hasCheckedOut
       ? "Swipe to Update Time"
-      : "Swipe to Clock Out"
-    : "Swipe to Clock In";
+      : "Swipe to Check Out"
+    : "Swipe to Check In";
 
   return (
     <div className="dashboard-phone">
@@ -352,7 +352,7 @@ const DashboardPage = () => {
           <div className="attendance-tile">
             <div className="flex items-center gap-4 text-slate-950">
               <FiClock className="h-4 w-4 text-slate-300" aria-hidden />
-              <p className="text-sm font-semibold">Clock In</p>
+              <p className="text-sm font-semibold">Check In</p>
             </div>
             <p className="mt-5 text-lg font-extrabold text-slate-950">
               {formatAttendanceTime(daily?.check_in_time)}
@@ -369,7 +369,7 @@ const DashboardPage = () => {
           <div className="attendance-tile">
             <div className="flex items-center gap-4 text-slate-950">
               <FiClock className="h-4 w-4 text-slate-300" aria-hidden />
-              <p className="text-sm font-semibold">Clock Out</p>
+              <p className="text-sm font-semibold">Check Out</p>
             </div>
             <p className="mt-5 text-lg font-extrabold text-slate-950">
               {formatAttendanceTime(daily?.check_out_time)}

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  FiAlertTriangle,
   FiAward,
   FiBookOpen,
   FiBriefcase,
@@ -62,6 +63,8 @@ const formatShortDate = (value) => {
   });
 };
 
+const formatTime = (value) => (value ? String(value).slice(0, 5) : "--");
+
 const monthLabel = (year, month) =>
   new Date(Number(year), Number(month) - 1, 1).toLocaleDateString(undefined, {
     month: "long",
@@ -92,6 +95,13 @@ const initialsFor = (value) =>
     .toUpperCase();
 
 const dateOnly = (value) => String(value || "").slice(0, 10);
+
+const mapUrl = (lat, lon) => {
+  if (lat === undefined || lat === null || lon === undefined || lon === null) {
+    return "";
+  }
+  return `https://www.google.com/maps?q=${lat},${lon}`;
+};
 
 const FieldRow = ({ icon: Icon, label, value }) => {
   if (value === undefined || value === null || value === "") return null;
@@ -171,6 +181,208 @@ const RecordGrid = ({ rows }) => {
   );
 };
 
+const getAttendanceStatus = (row) => {
+  if (row?.requires_manager_approval && row?.manager_approved === null) {
+    return {
+      label: "Pending approval",
+      className: "bg-amber-100 text-amber-700",
+    };
+  }
+  if (row?.manager_approved === false) {
+    return {
+      label: "Rejected",
+      className: "bg-rose-100 text-rose-700",
+    };
+  }
+  if (row?.flexible_scan) {
+    return {
+      label: "Flexible",
+      className: "bg-blue-100 text-blue-700",
+    };
+  }
+  if (row?.is_late) {
+    return {
+      label: "Late",
+      className: "bg-orange-100 text-orange-700",
+    };
+  }
+  if (row?.check_in_time) {
+    return {
+      label: "On time",
+      className: "bg-emerald-100 text-emerald-700",
+    };
+  }
+  return {
+    label: "No scan",
+    className: "bg-slate-100 text-slate-600",
+  };
+};
+
+function AttendanceDetailPanel({ attendance }) {
+  const attendanceRecords = useMemo(
+    () =>
+      [...(attendance?.records || [])].sort(
+        (a, b) => new Date(b.date) - new Date(a.date),
+      ),
+    [attendance],
+  );
+  const [selectedRecordId, setSelectedRecordId] = useState(null);
+
+  useEffect(() => {
+    if (!attendanceRecords.length) {
+      setSelectedRecordId(null);
+      return;
+    }
+    const stillExists = attendanceRecords.some(
+      (row) => String(row.id || row.date) === String(selectedRecordId),
+    );
+    if (!stillExists) {
+      setSelectedRecordId(attendanceRecords[0].id || attendanceRecords[0].date);
+    }
+  }, [attendanceRecords, selectedRecordId]);
+
+  const selectedRecord =
+    attendanceRecords.find(
+      (row) => String(row.id || row.date) === String(selectedRecordId),
+    ) || attendanceRecords[0];
+
+  const selectedStatus = getAttendanceStatus(selectedRecord);
+  const checkInMap = mapUrl(selectedRecord?.check_in_lat, selectedRecord?.check_in_lon);
+  const checkOutMap = mapUrl(selectedRecord?.check_out_lat, selectedRecord?.check_out_lon);
+
+  return (
+    <SectionCard title="Current Month Attendance">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-md bg-slate-50 p-4">
+          <p className="text-xs font-extrabold uppercase text-[#37517e]/65">Worked Days</p>
+          <p className="mt-2 text-2xl font-extrabold text-[#111b4f]">{attendance?.total_worked_days || 0}</p>
+        </div>
+        <div className="rounded-md bg-slate-50 p-4">
+          <p className="text-xs font-extrabold uppercase text-[#37517e]/65">Late Days</p>
+          <p className="mt-2 text-2xl font-extrabold text-[#111b4f]">{attendance?.total_late_days || 0}</p>
+        </div>
+        <div className="rounded-md bg-slate-50 p-4">
+          <p className="text-xs font-extrabold uppercase text-[#37517e]/65">OT Hours</p>
+          <p className="mt-2 text-2xl font-extrabold text-[#111b4f]">{compactNumber(attendance?.total_ot_hours)}</p>
+        </div>
+        <div className="rounded-md bg-slate-50 p-4">
+          <p className="text-xs font-extrabold uppercase text-[#37517e]/65">Records</p>
+          <p className="mt-2 text-2xl font-extrabold text-[#111b4f]">{attendanceRecords.length}</p>
+        </div>
+      </div>
+
+      {!attendanceRecords.length ? (
+        <div className="mt-4">
+          <EmptyState>No attendance records for this month.</EmptyState>
+        </div>
+      ) : (
+        <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+          <div className="max-h-[480px] overflow-y-auto rounded-lg border border-slate-100">
+            {attendanceRecords.map((row) => {
+              const status = getAttendanceStatus(row);
+              const isSelected =
+                String(row.id || row.date) === String(selectedRecord?.id || selectedRecord?.date);
+
+              return (
+                <button
+                  key={row.id || row.date}
+                  type="button"
+                  onClick={() => setSelectedRecordId(row.id || row.date)}
+                  className={`grid w-full gap-2 border-b border-slate-100 px-4 py-3 text-left last:border-b-0 ${
+                    isSelected ? "bg-blue-50" : "bg-white hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="flex min-w-0 items-center justify-between gap-3">
+                    <span className="min-w-0 truncate text-sm font-extrabold text-[#111b4f]">
+                      {formatShortDate(row.date)}
+                    </span>
+                    <span className={`shrink-0 rounded-md px-2.5 py-1 text-xs font-extrabold ${status.className}`}>
+                      {status.label}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs font-bold text-[#37517e]/75">
+                    <span>In {formatTime(row.check_in_time)}</span>
+                    <span>Out {formatTime(row.check_out_time)}</span>
+                    <span>{compactNumber(row.worked_hours)}h</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="rounded-lg border border-slate-100 bg-slate-50 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-sm font-extrabold text-[#111b4f]">
+                  {formatShortDate(selectedRecord?.date)}
+                </p>
+                <p className="mt-1 text-xs font-bold text-[#37517e]/70">
+                  Attendance detail
+                </p>
+              </div>
+              <span className={`w-fit rounded-md px-3 py-1 text-xs font-extrabold ${selectedStatus.className}`}>
+                {selectedStatus.label}
+              </span>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <DetailItem icon={FiClock} label="Check In" value={formatTime(selectedRecord?.check_in_time)} />
+              <DetailItem icon={FiClock} label="Check Out" value={formatTime(selectedRecord?.check_out_time)} />
+              <DetailItem icon={FiTrendingUp} label="Worked Hours" value={`${compactNumber(selectedRecord?.worked_hours)}h`} />
+              <DetailItem icon={FiAlertTriangle} label="Late" value={selectedRecord?.is_late ? "Yes" : "No"} />
+              <DetailItem icon={FiClock} label="Early Checkout" value={selectedRecord?.is_early_checkout ? "Yes" : "No"} />
+              <DetailItem icon={FiRefreshCw} label="Flexible Scan" value={selectedRecord?.flexible_scan ? "Yes" : "No"} />
+              <DetailItem icon={FiShield} label="Approval" value={
+                selectedRecord?.requires_manager_approval
+                  ? selectedRecord?.manager_approved === null
+                    ? "Pending"
+                    : selectedRecord?.manager_approved
+                      ? "Approved"
+                      : "Rejected"
+                  : "Not required"
+              } />
+              <DetailItem icon={FiFileText} label="Reason" value={selectedRecord?.needs_approval_reason} />
+            </div>
+
+            {(checkInMap || checkOutMap) && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {checkInMap && (
+                  <a
+                    href={checkInMap}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-9 items-center gap-2 rounded-md bg-white px-3 text-xs font-extrabold text-blue-700 ring-1 ring-slate-200 hover:bg-blue-50"
+                  >
+                    <FiMapPin className="h-4 w-4" aria-hidden />
+                    Check-in map
+                  </a>
+                )}
+                {checkOutMap && (
+                  <a
+                    href={checkOutMap}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-9 items-center gap-2 rounded-md bg-white px-3 text-xs font-extrabold text-blue-700 ring-1 ring-slate-200 hover:bg-blue-50"
+                  >
+                    <FiMapPin className="h-4 w-4" aria-hidden />
+                    Check-out map
+                  </a>
+                )}
+              </div>
+            )}
+
+            {selectedRecord?.remark && (
+              <div className="mt-4 rounded-md bg-white p-3 text-sm font-semibold leading-6 text-[#37517e] ring-1 ring-slate-100">
+                {selectedRecord.remark}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
 function TabPanel({ activeTab, profile, attendance }) {
   const user = profile?.user || {};
   const employee = profile?.profile || {};
@@ -179,7 +391,6 @@ function TabPanel({ activeTab, profile, attendance }) {
   const performance = profile?.performance || [];
   const training = profile?.training || [];
   const history = profile?.history || [];
-  const attendanceRecords = attendance?.records || [];
 
   if (activeTab === "employment") {
     return (
@@ -203,40 +414,7 @@ function TabPanel({ activeTab, profile, attendance }) {
   }
 
   if (activeTab === "attendance") {
-    return (
-      <SectionCard title="Current Month Attendance">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-md bg-slate-50 p-4">
-            <p className="text-xs font-extrabold uppercase text-[#37517e]/65">Worked Days</p>
-            <p className="mt-2 text-2xl font-extrabold text-[#111b4f]">{attendance?.total_worked_days || 0}</p>
-          </div>
-          <div className="rounded-md bg-slate-50 p-4">
-            <p className="text-xs font-extrabold uppercase text-[#37517e]/65">Late Days</p>
-            <p className="mt-2 text-2xl font-extrabold text-[#111b4f]">{attendance?.total_late_days || 0}</p>
-          </div>
-          <div className="rounded-md bg-slate-50 p-4">
-            <p className="text-xs font-extrabold uppercase text-[#37517e]/65">OT Hours</p>
-            <p className="mt-2 text-2xl font-extrabold text-[#111b4f]">{compactNumber(attendance?.total_ot_hours)}</p>
-          </div>
-        </div>
-
-        <div className="mt-4 divide-y divide-slate-100 rounded-lg border border-slate-100">
-          {attendanceRecords.slice(-6).reverse().map((row) => (
-            <div key={row.id || row.date} className="grid gap-2 px-4 py-3 text-sm font-bold text-[#111b4f] sm:grid-cols-[1fr_auto]">
-              <span>{formatShortDate(row.date)}</span>
-              <span className="text-[#37517e]">
-                {row.check_in_time || "--"} / {row.check_out_time || "--"}
-              </span>
-            </div>
-          ))}
-          {!attendanceRecords.length && (
-            <div className="px-4 py-5 text-sm font-bold text-slate-500">
-              No attendance records for this month.
-            </div>
-          )}
-        </div>
-      </SectionCard>
-    );
+    return <AttendanceDetailPanel attendance={attendance} />;
   }
 
   if (activeTab === "payroll") {
@@ -267,25 +445,52 @@ function TabPanel({ activeTab, profile, attendance }) {
   }
 
   if (activeTab === "performance") {
+    const scoreColor = (score) => {
+      if (score >= 80) return { bg: "from-emerald-500 to-green-600", badge: "bg-emerald-100 text-emerald-700", bar: "bg-emerald-500", label: "Excellent" };
+      if (score >= 60) return { bg: "from-blue-500 to-indigo-600", badge: "bg-blue-100 text-blue-700", bar: "bg-blue-500", label: "Good" };
+      if (score >= 40) return { bg: "from-amber-500 to-orange-600", badge: "bg-amber-100 text-amber-700", bar: "bg-amber-500", label: "Average" };
+      return { bg: "from-red-500 to-rose-600", badge: "bg-red-100 text-red-700", bar: "bg-red-500", label: "Needs Improvement" };
+    };
+
     return (
       <SectionCard title="Performance Reviews">
-        <div className="grid gap-3 md:grid-cols-2">
-          {performance.map((row) => (
-            <div key={row.id} className="rounded-lg border border-slate-100 bg-slate-50 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-extrabold text-[#111b4f]">{row.review_period}</p>
-                  <p className="mt-1 text-xs font-bold text-[#37517e]/70">{formatLabel(row.rating)}</p>
+        <div className="grid gap-4 md:grid-cols-2">
+          {performance.map((row) => {
+            const colors = scoreColor(row.score);
+            const stars = Math.round((row.score || 0) / 20);
+            return (
+              <div key={row.id} className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md">
+                <div className={`absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r ${colors.bg}`} />
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-base font-extrabold text-[#111b4f]">{row.review_period}</p>
+                    <div className="mt-2 flex items-center gap-1.5">
+                      {Array.from({ length: 5 }, (_, i) => (
+                        <svg key={i} className={`h-4 w-4 ${i < stars ? "text-amber-400" : "text-slate-200"}`} fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                      ))}
+                      <span className={`ml-1 rounded-full px-2.5 py-0.5 text-xs font-extrabold ${colors.badge}`}>
+                        {colors.label}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-center">
+                    <span className="text-2xl font-extrabold text-[#111b4f]">{compactNumber(row.score)}</span>
+                    <span className="text-xs font-bold text-slate-400">/100</span>
+                  </div>
                 </div>
-                <span className="rounded-md bg-blue-100 px-3 py-1 text-sm font-extrabold text-blue-700">
-                  {compactNumber(row.score)}%
-                </span>
+                <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div className={`h-full rounded-full ${colors.bar} transition-all duration-500`} style={{ width: `${Math.min(row.score || 0, 100)}%` }} />
+                </div>
+                {row.comments && (
+                  <p className="mt-4 border-t border-slate-100 pt-3 text-sm font-semibold leading-6 text-[#37517e]">
+                    {row.comments}
+                  </p>
+                )}
               </div>
-              {row.comments && (
-                <p className="mt-3 text-sm font-semibold leading-6 text-[#37517e]">{row.comments}</p>
-              )}
-            </div>
-          ))}
+            );
+          })}
           {!performance.length && <EmptyState>No performance reviews recorded yet.</EmptyState>}
         </div>
       </SectionCard>
