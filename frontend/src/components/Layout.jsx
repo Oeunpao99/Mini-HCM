@@ -168,9 +168,7 @@ const Layout = ({ children }) => {
       <div className="min-h-screen bg-[#f5f7fb] text-slate-950">
         <aside className="fixed inset-y-0 left-0 z-30 hidden w-[300px] bg-[#071a33] text-white shadow-2xl lg:flex lg:flex-col">
           <div className="flex h-20 items-center gap-3 px-6">
-            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-blue-600">
-              <FiUsers className="h-6 w-6" aria-hidden />
-            </div>
+            <img src="/logo.svg" alt="Logo" className="h-11 w-11" />
             <div>
               <p className="text-xl font-extrabold leading-none">HCM App</p>
               <p className="mt-1 text-xs font-semibold leading-tight text-white/65">

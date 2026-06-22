@@ -22,7 +22,10 @@ const LoginPage = () => {
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <form onSubmit={submit} className="card w-full max-w-md space-y-4 p-6">
-        <h2 className="font-display text-2xl font-bold">Sign In</h2>
+        <div className="flex flex-col items-center gap-3">
+          <img src="/logo.svg" alt="Logo" className="h-14 w-14" />
+          <h2 className="font-display text-2xl font-bold">Sign In</h2>
+        </div>
         <input
           className="w-full rounded-lg border border-slate-200 px-3 py-2"
           placeholder="Employee Code"
