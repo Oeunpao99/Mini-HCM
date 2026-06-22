@@ -1,11 +1,16 @@
+import { useState } from "react";
 import { BiSolidTimeFive } from "react-icons/bi";
 import { BsFillClipboardDataFill } from "react-icons/bs";
 import {
   FiBell,
   FiBriefcase,
+  FiCalendar,
   FiCheckSquare,
+  FiChevronDown,
+  FiClock,
   FiCreditCard,
   FiMenu,
+  FiRefreshCw,
   FiSearch,
   FiSettings,
   FiUsers,
@@ -17,92 +22,151 @@ import { useAuth } from "../context/AuthContext";
 
 const staffNavItems = [
   { to: "/", label: "Home", icon: <FaHome className="h-5 w-5" aria-hidden /> },
+  { to: "/attendance", label: "Attendance", icon: <BiSolidTimeFive className="h-5 w-5" aria-hidden /> },
+  { to: "/payslips", label: "Payslip", icon: <FiCreditCard className="h-5 w-5" aria-hidden /> },
+  { to: "/report", label: "Report", icon: <BsFillClipboardDataFill className="h-5 w-5" aria-hidden /> },
+  { to: "/profile", label: "Profile", icon: <RiUserSettingsFill className="h-5 w-5" aria-hidden /> },
+];
+
+const managementRoles = ["line_manager", "department_head", "management_hr", "payroll_officer"];
+
+const flatNavItems = [
+  { to: "/", label: "Dashboard", icon: <RiDashboardFill className="h-5 w-5" aria-hidden /> },
+  { to: "/hris", label: "Employee Database", icon: <FiUsers className="h-5 w-5" aria-hidden /> },
+];
+
+const moduleGroups = [
   {
-    to: "/attendance",
-    label: "Attendance",
+    key: "attendance_leave",
+    label: "Attendance & Leave Management",
     icon: <BiSolidTimeFive className="h-5 w-5" aria-hidden />,
-  },
-  {
-    to: "/payslips",
-    label: "Payslip",
-    icon: <FiCreditCard className="h-5 w-5" aria-hidden />,
-  },
-  {
-    to: "/report",
-    label: "Report",
-    icon: <BsFillClipboardDataFill className="h-5 w-5" aria-hidden />,
-  },
-  {
-    to: "/profile",
-    label: "Profile",
-    icon: <RiUserSettingsFill className="h-5 w-5" aria-hidden />,
+    items: [
+      { to: "/my-attendance", label: "My Attendance", icon: <FiClock className="h-4 w-4" aria-hidden /> },
+      { to: "/admin", label: "Attendance Management", icon: <BiSolidTimeFive className="h-4 w-4" aria-hidden /> },
+      { to: "/requests?type=leave", label: "Leave Management", icon: <FiCalendar className="h-4 w-4" aria-hidden /> },
+      { to: "/requests?type=ot", label: "OT Management", icon: <FiClock className="h-4 w-4" aria-hidden /> },
+      { to: "/shift", label: "Shift & Schedule Management", icon: <FiRefreshCw className="h-4 w-4" aria-hidden /> },
+    ],
   },
 ];
 
-const managementRoles = [
-  "line_manager",
-  "department_head",
-  "management_hr",
-  "payroll_officer",
+const standaloneNavItems = [];
+
+const otherNavItems = [
+  { to: "/hris?tab=payroll", label: "Payroll", icon: <FiCreditCard className="h-5 w-5" aria-hidden /> },
+  { to: "/hris?tab=performance", label: "Performance", icon: <FiBriefcase className="h-5 w-5" aria-hidden /> },
+  { to: "/hris?tab=reports", label: "Reports", icon: <BsFillClipboardDataFill className="h-5 w-5" aria-hidden /> },
+  { to: "/hris?tab=settings", label: "HRIS Settings", icon: <FiSettings className="h-5 w-5" aria-hidden /> },
+  { to: "/profile", label: "Settings", icon: <FiSettings className="h-5 w-5" aria-hidden /> },
 ];
 
-const managementNavItems = [
-  {
-    to: "/",
-    label: "Dashboard",
-    icon: <RiDashboardFill className="h-5 w-5" aria-hidden />,
-  },
-  {
-    to: "/hris",
-    label: "Employee Database",
-    icon: <FiUsers className="h-5 w-5" aria-hidden />,
-  },
-  {
-    to: "/admin",
-    label: "Time & Attendance",
-    icon: <BiSolidTimeFive className="h-5 w-5" aria-hidden />,
-  },
-  {
-    to: "/requests",
-    label: "Request Management",
-    icon: <FiCheckSquare className="h-5 w-5" aria-hidden />,
-  },
-  {
-    to: "/hris?tab=payroll",
-    label: "Payroll",
-    icon: <FiCreditCard className="h-5 w-5" aria-hidden />,
-  },
-  {
-    to: "/hris?tab=performance",
-    label: "Performance",
-    icon: <FiBriefcase className="h-5 w-5" aria-hidden />,
-  },
-  {
-    to: "/hris?tab=reports",
-    label: "Reports",
-    icon: <BsFillClipboardDataFill className="h-5 w-5" aria-hidden />,
-  },
-  {
-    to: "/hris?tab=settings",
-    label: "HRIS Settings",
-    icon: <FiSettings className="h-5 w-5" aria-hidden />,
-  },
-  {
-    to: "/profile",
-    label: "Settings",
-    icon: <FiSettings className="h-5 w-5" aria-hidden />,
-  },
-];
+const NavLinkItem = ({ to, label, icon }) => {
+  const location = useLocation();
+  const current = `${location.pathname}${location.search}`;
+  const active = to.includes("?") ? current === to : location.pathname === to && !location.search;
+  return (
+    <NavLink
+      to={to}
+      className={`flex h-11 items-center gap-3 rounded-lg px-4 text-sm font-bold ${
+        active
+          ? "bg-blue-600 text-white shadow-lg shadow-blue-900/30"
+          : "text-white/78 hover:bg-white/10 hover:text-white"
+      }`}
+    >
+      {icon}
+      <span>{label}</span>
+    </NavLink>
+  );
+};
+
+const ModuleGroup = ({ group, isExpanded, onToggle }) => {
+  const location = useLocation();
+  const hasItems = group.items.length > 0;
+  const anyActive = group.items.some((item) => {
+    const current = `${location.pathname}${location.search}`;
+    return item.to.includes("?") ? current === item.to : location.pathname === item.to;
+  });
+
+  return (
+    <div>
+      <button
+        onClick={onToggle}
+        className={`flex h-11 w-full items-center gap-3 rounded-lg px-4 text-sm font-bold ${
+          anyActive
+            ? "bg-blue-600/20 text-blue-300"
+            : "text-white/78 hover:bg-white/10 hover:text-white"
+        }`}
+      >
+        {group.icon}
+        <span className="flex-1 text-left">{group.label}</span>
+        {hasItems && (
+          <FiChevronDown
+            className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? "rotate-0" : "-rotate-90"}`}
+          />
+        )}
+        {!hasItems && (
+          <span className="text-[10px] font-semibold text-white/40">Empty</span>
+        )}
+      </button>
+      {hasItems && (
+        <div
+          className={`grid overflow-hidden transition-all duration-200 ${
+            isExpanded ? "mt-1 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+          }`}
+        >
+          <div className="min-h-0">
+            <div className="ml-2 border-l border-white/10 pl-3">
+              {group.items.map((item) => (
+                <div key={item.to + item.label} className="mb-1.5 last:mb-0">
+                  <NavLinkItem to={item.to} label={item.label} icon={item.icon} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Layout = ({ children }) => {
   const { role, name, logout } = useAuth();
   const location = useLocation();
   const isManagement = managementRoles.includes(role);
 
+  const initialExpanded = () => {
+    try {
+      const saved = localStorage.getItem("expandedModules");
+      const parsed = saved ? JSON.parse(saved) : [];
+      const activePath = `${location.pathname}${location.search}`;
+      for (const group of moduleGroups) {
+        if (group.items.some((item) => {
+          const current = `${location.pathname}${location.search}`;
+          return item.to.includes("?") ? current === item.to : location.pathname === item.to;
+        })) {
+          if (!parsed.includes(group.key)) parsed.push(group.key);
+        }
+      }
+      return parsed;
+    } catch {
+      return [];
+    }
+  };
+
+  const [expandedModules, setExpandedModules] = useState(initialExpanded);
+
+  const toggleModule = (key) => {
+    setExpandedModules((prev) => {
+      const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
+      localStorage.setItem("expandedModules", JSON.stringify(next));
+      return next;
+    });
+  };
+
   if (isManagement) {
     return (
       <div className="min-h-screen bg-[#f5f7fb] text-slate-950">
-        <aside className="fixed inset-y-0 left-0 z-30 hidden w-[264px] bg-[#071a33] text-white shadow-2xl lg:flex lg:flex-col">
+        <aside className="fixed inset-y-0 left-0 z-30 hidden w-[300px] bg-[#071a33] text-white shadow-2xl lg:flex lg:flex-col">
           <div className="flex h-20 items-center gap-3 px-6">
             <div className="grid h-11 w-11 place-items-center rounded-2xl bg-blue-600">
               <FiUsers className="h-6 w-6" aria-hidden />
@@ -115,26 +179,39 @@ const Layout = ({ children }) => {
             </div>
           </div>
 
-          <nav className="mt-4 grid gap-1 px-4">
-            {managementNavItems.map((item) => (
-              <NavLink
-                key={item.label}
-                to={item.to}
-                className={({ isActive }) => {
-                  const current = `${location.pathname}${location.search}`;
-                  const active = item.to.includes("?")
-                    ? current === item.to
-                    : isActive && !location.search;
-                  return `flex h-11 items-center gap-3 rounded-lg px-4 text-sm font-bold ${
-                    active
-                      ? "bg-blue-600 text-white shadow-lg shadow-blue-900/30"
-                      : "text-white/78 hover:bg-white/10 hover:text-white"
-                  }`;
-                }}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </NavLink>
+          <nav className="sidebar-nav mt-4 grid gap-1 overflow-y-auto px-4">
+            {flatNavItems.map((item) => (
+              <div key={item.to} className="mb-1.5">
+                <NavLinkItem to={item.to} label={item.label} icon={item.icon} />
+              </div>
+            ))}
+
+            <div className="my-3 border-t border-white/10" />
+
+            {moduleGroups.map((group) => (
+              <div key={group.key} className="mb-1.5">
+                <ModuleGroup
+                  group={group}
+                  isExpanded={expandedModules.includes(group.key)}
+                  onToggle={() => toggleModule(group.key)}
+                />
+              </div>
+            ))}
+
+            <div className="my-3 border-t border-white/10" />
+
+            {standaloneNavItems.map((item) => (
+              <div key={item.to} className="mb-1.5">
+                <NavLinkItem to={item.to} label={item.label} icon={item.icon} />
+              </div>
+            ))}
+
+            <div className="my-3 border-t border-white/10" />
+
+            {otherNavItems.map((item) => (
+              <div key={item.to} className="mb-1.5">
+                <NavLinkItem to={item.to} label={item.label} icon={item.icon} />
+              </div>
             ))}
           </nav>
 
@@ -157,7 +234,7 @@ const Layout = ({ children }) => {
           </div>
         </aside>
 
-        <div className="lg:pl-[264px]">
+        <div className="lg:pl-[300px]">
           <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur-xl">
             <div className="flex h-16 items-center justify-between gap-4 px-4 md:px-6">
               <div className="flex min-w-0 flex-1 items-center gap-3">

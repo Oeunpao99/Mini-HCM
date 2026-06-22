@@ -18,6 +18,7 @@ from app.api.deps import (
 )
 from app.models.request import Request
 from app.models.app_setting import AppSetting
+from app.models.ot.models import OtRequest
 from app.models.user import User
 from app.schemas.common import MessageResponse
 from app.schemas.request import (
@@ -357,6 +358,28 @@ def update_status(
     db.commit()
     db.refresh(row)
     return row
+
+
+@router.put("/mark-paid", response_model=MessageResponse)
+def mark_request_paid(
+    payload: CancelRequestIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(MANAGEMENT_HR_ROLE)),
+):
+    row = db.query(Request).filter(Request.id == payload.request_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if row.status != "approved":
+        raise HTTPException(status_code=400, detail="Only approved OT requests can be marked as paid")
+    if row.type != "ot":
+        raise HTTPException(status_code=400, detail="Only OT requests can be marked as paid")
+
+    row.status = "paid"
+    ot = db.query(OtRequest).filter(OtRequest.id == row.id).first()
+    if ot:
+        ot.status = "paid"
+    db.commit()
+    return MessageResponse(message="OT marked as paid")
 
 
 @router.put("/cancel", response_model=MessageResponse)

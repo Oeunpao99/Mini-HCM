@@ -24,7 +24,7 @@ class EmployeeProfile(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
-    user = relationship("User")
+    user = relationship("User", back_populates="profile")
 
 
 class EmployeeHistory(Base):
@@ -80,11 +80,16 @@ class ShiftSchedule(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    shift_id = Column(Integer, nullable=True, index=True)
     shift_name = Column(String(80), nullable=False)
     work_date = Column(Date, nullable=False, index=True)
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
     location = Column(String(120), nullable=True)
+    is_rest_day = Column(Boolean, default=False)
+    is_public_holiday = Column(Boolean, default=False)
+    schedule_status = Column(String(20), default="Planned")
+    remarks = Column(String(500), nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, server_default=func.now())
 

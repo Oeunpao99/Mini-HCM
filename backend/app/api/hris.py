@@ -21,7 +21,7 @@ from app.api.deps import (
 )
 from app.core.security import get_password_hash
 from app.models.app_setting import AppSetting
-from app.models.attendance import Attendance
+from app.models.attendance.models import Attendance
 from app.models.hris import (
     EmployeeHistory,
     EmployeeMovementRequest,
@@ -74,8 +74,8 @@ MOVEMENT_TYPES = {
 MOVEMENT_STATUSES = {"pending", "approved", "rejected"}
 HRIS_LOOKUP_SETTING_KEY = "hris_lookup_settings"
 DEFAULT_HRIS_LOOKUPS = {
-    "departments": ["Human Resources", "Operations", "Finance", "Sales", "IT"],
-    "sub_departments": ["Recruitment", "Payroll", "Administration", "Support"],
+    "departments": ["Human Resources", "Operations", "Finance", "Sales", "IT", "Developer"],
+    "sub_departments": ["Recruitment", "Payroll", "Administration", "Support", "AI", "Web Developer"],
     "positions": ["HR Officer", "Senior HR Officer", "Accountant", "Team Lead", "Staff"],
     "job_grades": ["G1", "G2", "G3", "G4", "M1"],
     "employment_statuses": ["active", "on_leave", "inactive", "resigned"],

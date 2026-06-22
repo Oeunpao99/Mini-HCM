@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  FiAlertCircle,
   FiArrowDown,
   FiArrowUp,
   FiBarChart2,
@@ -7,9 +8,11 @@ import {
   FiCheckCircle,
   FiChevronLeft,
   FiClock,
+  FiDownload,
   FiEye,
   FiFilter,
   FiPlus,
+  FiRefreshCw,
   FiSave,
   FiSearch,
   FiUsers,
@@ -17,6 +20,8 @@ import {
   FiXCircle,
 } from "react-icons/fi";
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
   Cell,
   Line,
@@ -57,10 +62,11 @@ const requestTitles = {
   permission: "Permission Request Form",
   flexible: "Flexible Request Form",
   ot: "Overtime Request Form",
+  late: "Late Request Form",
 };
 
 const requestListTitles = {
-  leave: "Leave Requests",
+  leave: "Leave Management",
   permission: "Permission Requests",
   flexible: "Flexible Requests",
   ot: "Overtime Requests",
@@ -68,6 +74,7 @@ const requestListTitles = {
 const requestTypeDefinitions = [
   { key: "leave", label: "Leave", tab: "Leave", color: "#1f7aff", tone: "bg-blue-100 text-blue-700" },
   { key: "permission", label: "Permission", tab: "Permission", color: "#f59e0b", tone: "bg-orange-100 text-orange-700" },
+  { key: "late", label: "Late", tab: "Late", color: "#ff0000", tone: "bg-red-100 text-red-700" },
   { key: "ot", label: "Overtime", tab: "Overtime", color: "#8b5cf6", tone: "bg-violet-100 text-violet-700" },
   { key: "flexible", label: "Flexible Work", tab: "Flexible Work", color: "#22c55e", tone: "bg-emerald-100 text-emerald-700" },
 ];
@@ -225,6 +232,7 @@ const leaveTypeTone = (type) => {
 
 const leaveStatusTone = (status) => {
   if (status === "approved") return "bg-emerald-100 text-emerald-700";
+  if (status === "paid") return "bg-blue-100 text-blue-700";
   if (status === "rejected") return "bg-red-100 text-red-700";
   if (status === "cancelled") return "bg-slate-100 text-slate-500";
   return "bg-amber-100 text-amber-700";
@@ -458,9 +466,12 @@ const RequestsPage = () => {
   const [recentlyUpdatedId, setRecentlyUpdatedId] = useState(null);
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [showTypeSelector, setShowTypeSelector] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [visibleCount, setVisibleCount] = useState(6);
+  const [deptFilter, setDeptFilter] = useState("all");
+  const [unitFilter, setUnitFilter] = useState("all");
   const requestType = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const type = params.get("type");
@@ -586,6 +597,20 @@ const RequestsPage = () => {
     [empCode, users],
   );
 
+  const departmentOptions = useMemo(
+    () => [...new Set(users.map((user) => user.department).filter(Boolean))],
+    [users],
+  );
+  const unitOptions = useMemo(
+    () => [...new Set(
+      users
+        .filter((user) => deptFilter === "all" || user.department === deptFilter)
+        .map((user) => user.sub_department)
+        .filter(Boolean)
+    )],
+    [users, deptFilter],
+  );
+
   const managementRequests = useMemo(
     () => items,
     [items],
@@ -606,23 +631,44 @@ const RequestsPage = () => {
         };
       })
       .filter((row) => {
+        const matchesDept = deptFilter === "all" || row.user?.department === deptFilter;
+        const matchesUnit = unitFilter === "all" || row.user?.sub_department === unitFilter;
+        if (!matchesDept || !matchesUnit) return false;
         if (!query) return true;
         return `${row.user?.name || ""} ${row.user?.department || ""} ${requestTypeLabel(row.request.type)} ${row.detail || ""} ${row.request.status || ""}`
           .toLowerCase()
           .includes(query);
       });
-  }, [leaveSearch, managementRequests, userById]);
+  }, [leaveSearch, deptFilter, unitFilter, managementRequests, userById]);
+
+  const filteredManagementRequests = useMemo(() => {
+    const query = leaveSearch.trim().toLowerCase();
+    return managementRequests.filter((request) => {
+      const user = userById.get(request.user_id);
+      const searchable = `${user?.name || ""} ${user?.department || ""} ${requestTypeLabel(request.type)} ${requestDetailLabel(request)} ${request.status || ""}`.toLowerCase();
+      const matchesSearch = !query || searchable.includes(query);
+      const matchesStatus = statusFilter === "all" || matchesStatusFilter(request, statusFilter);
+      const matchesDept = deptFilter === "all" || user?.department === deptFilter;
+      const matchesUnit = unitFilter === "all" || user?.sub_department === unitFilter;
+      return matchesSearch && matchesStatus && matchesDept && matchesUnit;
+    });
+  }, [leaveSearch, statusFilter, deptFilter, unitFilter, managementRequests, userById]);
 
   const managementStats = useMemo(() => {
     const [year, month] = leaveMonth.split("-").map(Number);
-    const selectedMonthRequests = managementRequests.filter((request) => monthKey(request.date) === leaveMonth);
-    const leaveRequests = managementRequests.filter((request) => request.type === "leave");
+    const scope = requestType === "ot"
+      ? filteredManagementRequests.filter((r) => r.type === "ot")
+      : requestType === "leave"
+        ? filteredManagementRequests.filter((r) => r.type !== "ot")
+        : filteredManagementRequests;
+    const selectedMonthRequests = scope.filter((request) => monthKey(request.date) === leaveMonth);
+    const leaveRequests = filteredManagementRequests.filter((request) => request.type === "leave");
     const today = todayKey();
     const approved = selectedMonthRequests.filter((request) => request.status === "approved");
-    const pending = managementRequests.filter((request) => request.status === "pending");
+    const pending = scope.filter((request) => request.status === "pending");
     const rejected = selectedMonthRequests.filter((request) => request.status === "rejected");
     const onLeaveToday = leaveRequests.filter((request) => request.status === "approved" && isDateInRequest(request, today));
-    const pendingOtHours = managementRequests
+    const pendingOtHours = filteredManagementRequests
       .filter((request) => request.type === "ot" && request.status === "pending")
       .reduce((sum, request) => sum + Number(getReasonValue(request.reason, "Hour work") || 0), 0);
     const usedAnnual = leaveRequests
@@ -650,7 +696,7 @@ const RequestsPage = () => {
     const trend = Array.from({ length: 6 }, (_, index) => {
       const date = new Date(year, month - 6 + index, 1);
       const key = monthKey(date);
-      const rows = managementRequests.filter((request) => monthKey(request.date) === key);
+      const rows = scope.filter((request) => monthKey(request.date) === key);
       return {
         label: date.toLocaleDateString(undefined, { month: "short" }),
         Approved: rows.filter((request) => request.status === "approved").length,
@@ -663,6 +709,59 @@ const RequestsPage = () => {
       value: selectedMonthRequests.filter((request) => request.type === item.key).length,
       color: item.color,
     }));
+
+    const otRequests = filteredManagementRequests.filter((r) => r.type === "ot");
+    const totalOtHours = otRequests
+      .filter((r) => r.status === "approved" || r.status === "pending")
+      .reduce((sum, r) => sum + Number(getReasonValue(r.reason, "Hour work") || 0), 0);
+    const approvedOtHours = otRequests
+      .filter((r) => r.status === "approved")
+      .reduce((sum, r) => sum + Number(getReasonValue(r.reason, "Hour work") || 0), 0);
+    const pendingOtCount = otRequests.filter((r) => r.status === "pending").length;
+    const approvedOtCount = otRequests.filter((r) => r.status === "approved").length;
+    const rejectedOtCount = otRequests.filter((r) => r.status === "rejected").length;
+    const paidOtCount = otRequests.filter((r) => r.status === "paid").length;
+    const paidOtHours = otRequests
+      .filter((r) => r.status === "paid")
+      .reduce((sum, r) => sum + Number(getReasonValue(r.reason, "Hour work") || 0), 0);
+    const hourlyRate = 10;
+    const otCostSummary = (approvedOtHours * hourlyRate).toFixed(2);
+
+    const otByDepartment = [];
+    const deptMap = new Map();
+    otRequests.filter((r) => r.status === "approved").forEach((r) => {
+      const user = userById.get(r.user_id);
+      const dept = user?.department || "Unassigned";
+      const hours = Number(getReasonValue(r.reason, "Hour work") || 0);
+      deptMap.set(dept, (deptMap.get(dept) || 0) + hours);
+    });
+    deptMap.forEach((hours, dept) => otByDepartment.push({ department: dept, hours: Math.round(hours * 10) / 10 }));
+
+    const topOtEmployees = [];
+    const empMap = new Map();
+    otRequests.filter((r) => r.status === "approved").forEach((r) => {
+      const uid = r.user_id;
+      const hours = Number(getReasonValue(r.reason, "Hour work") || 0);
+      empMap.set(uid, (empMap.get(uid) || 0) + hours);
+    });
+    empMap.forEach((hours, uid) => {
+      const u = userById.get(uid);
+      topOtEmployees.push({ user_id: uid, name: u?.name || `Employee #${uid}`, hours: Math.round(hours * 10) / 10 });
+    });
+    topOtEmployees.sort((a, b) => b.hours - a.hours);
+
+    const monthlyOtTrend = Array.from({ length: 12 }, (_, index) => {
+      const d = new Date(year, index, 1);
+      const key = monthKey(d);
+      const rows = otRequests.filter((r) => monthKey(r.date) === key);
+      const totalHours = rows.reduce((sum, r) => sum + Number(getReasonValue(r.reason, "Hour work") || 0), 0);
+      return {
+        month: d.toLocaleDateString(undefined, { month: "short" }),
+        hours: Math.round(totalHours * 10) / 10,
+        count: rows.length,
+      };
+    });
+
     return {
       pending: pending.length,
       approved: approved.length,
@@ -674,8 +773,19 @@ const RequestsPage = () => {
       typeData,
       trend,
       selectedMonthRequests,
+      otByDepartment,
+      topOtEmployees,
+      monthlyOtTrend,
+      totalOtHours: Math.round(totalOtHours * 10) / 10,
+      approvedOtHours: Math.round(approvedOtHours * 10) / 10,
+      pendingOtCount,
+      approvedOtCount,
+      rejectedOtCount,
+      paidOtCount,
+      paidOtHours: Math.round(paidOtHours * 10) / 10,
+      otCostSummary,
     };
-  }, [leaveMonth, managementRequests, users.length]);
+  }, [leaveMonth, filteredManagementRequests, requestType, userById, users.length]);
 
   const days = useMemo(
     () => dateDiffDays(form.start_date, form.end_date),
@@ -759,6 +869,23 @@ const RequestsPage = () => {
           `OT type: ${form.ot_type || "-"}`,
           `OT status: ${form.ot_status || "-"}`,
           `Hour work: ${form.ot_hour_work || "-"}`,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      };
+    }
+
+    if (form.type === "late") {
+      return {
+        type: "late",
+        date: form.start_date,
+        start_time: "",
+        end_time: "",
+        backup_user_id: null,
+        reason: [
+          form.reason,
+          `Shift: ${form.start_shift || "-"}`,
+          `Late minutes: ${form.permission_duration || "-"}`,
         ]
           .filter(Boolean)
           .join("\n"),
@@ -892,9 +1019,27 @@ const RequestsPage = () => {
     setShowForm(false);
   };
 
+  const markAsPaid = async (id) => {
+    setActionLoadingId(id);
+    try {
+      await api.put("/api/requests/mark-paid", { request_id: id });
+      await loadRequests();
+    } catch (err) {
+      setStatus(err?.response?.data?.detail || err.message || "Could not mark OT as paid");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   const openForm = () => {
     setSelectedRequestId(null);
     setStatus("");
+    setShowTypeSelector(true);
+  };
+
+  const selectRequestType = (type) => {
+    setForm((previous) => ({ ...previous, type }));
+    setShowTypeSelector(false);
     setShowForm(true);
   };
 
@@ -1274,35 +1419,92 @@ const RequestsPage = () => {
     </>
   );
 
+  const renderLateForm = () => (
+    <>
+      <h2 className="mb-4 text-xl font-extrabold text-black">Late Arrival Form</h2>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+        <FieldShell label="Date" required>
+          <input type="date" value={form.start_date} onChange={(event) => setForm((previous) => ({ ...previous, start_date: event.target.value }))} className={inputClass} />
+        </FieldShell>
+        <FieldShell label="Shift" required>
+          <select value={form.start_shift} onChange={(event) => setForm((previous) => ({ ...previous, start_shift: event.target.value }))} className={inputClass}>
+            <option value="">Select shift</option>
+            <option value="morning">Morning</option>
+            <option value="afternoon">Afternoon</option>
+            <option value="night">Night</option>
+          </select>
+        </FieldShell>
+        <FieldShell label="Late Minutes" required>
+          <input type="number" min="1" value={form.permission_duration} onChange={(event) => setForm((previous) => ({ ...previous, permission_duration: event.target.value }))} className={inputClass} placeholder="Minutes late" />
+        </FieldShell>
+      </div>
+      <FieldShell label="Reason" required className="mt-4">
+        <textarea value={form.reason} onChange={(event) => setForm((previous) => ({ ...previous, reason: event.target.value }))} className={inputClass} rows={3} placeholder="Reason for being late..." />
+      </FieldShell>
+    </>
+  );
+
   const renderActiveForm = () => {
     if (form.type === "permission") return renderPermissionForm();
     if (form.type === "flexible") return renderFlexibleForm();
     if (form.type === "ot") return renderOvertimeForm();
+    if (form.type === "late") return renderLateForm();
     return renderLeaveForm();
   };
 
   if (isManagement) {
-    const upcomingHolidays = [
-      ["Visak Bochea Day", "12 May 2025"],
-      ["Royal Ploughing Ceremony", "14 May 2025"],
-      ["International Children's Day", "01 Jun 2025"],
-      ["King's Birthday", "14 Jun 2025"],
-    ];
-    const totalMonth = Math.max(managementStats.selectedMonthRequests.length, 1);
-    const rowsForTab = (tab) => {
-      if (tab === "My Team Requests") return managementRows.filter((row) => row.request.status === "pending");
-      const type = requestTypeDefinitions.find((item) => item.tab === tab)?.key;
-      if (type) return managementRows.filter((row) => row.request.type === type);
-      return managementRows;
+    const exportCsv = () => {
+      const headers = ["#", "Employee", "Department", "Unit", "Type", "Detail", "Date Range", "Reason", "Status"];
+      const lines = [
+        headers.join(","),
+        ...managementRows.map((row, index) =>
+          [
+            index + 1,
+            row.user?.name || "",
+            row.user?.department || "",
+            row.user?.sub_department || "",
+            requestTypeLabel(row.request.type),
+            row.detail,
+            row.range,
+            row.reason,
+            row.request.status,
+          ]
+            .map((value) => `"${String(value).replaceAll('"', '""')}"`)
+            .join(","),
+        ),
+      ];
+      const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `requests-${leaveMonth}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
     };
 
+    const totalMonth = Math.max(managementStats.selectedMonthRequests.length, 1);
+    const withoutOt = (rows) => requestType === "leave" ? rows.filter((r) => r.request.type !== "ot") : rows;
+    const rowsForTab = (tab) => {
+      if (tab === "All Requests") return withoutOt(managementRows);
+      if (tab === "My Team Requests") return withoutOt(managementRows.filter((row) => row.request.status === "pending"));
+      if (requestType === "ot") return managementRows.filter((row) => row.request.type === "ot");
+      const type = requestTypeDefinitions.find((item) => item.tab === tab)?.key;
+      if (type) return managementRows.filter((row) => row.request.type === type);
+      return withoutOt(managementRows);
+    };
+
+    const dashboardTabs = requestType === "ot"
+      ? requestDashboardTabs.filter((tab) => tab === "Dashboard" || tab === "Overtime" || tab === "Reports")
+      : requestDashboardTabs.filter((tab) => tab !== "Overtime" && tab !== "My Team Requests");
+
     return (
+      <>
       <section className="min-h-[calc(100vh-4rem)] bg-[#f6f8fd] px-4 py-6 md:px-6">
         <div className="mx-auto max-w-[1600px] space-y-4">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="text-3xl font-extrabold text-[#11164a]">Request Management</h1>
-              <p className="mt-1 text-sm font-semibold text-slate-500">Home &gt; Request Management &gt; Dashboard</p>
+              <h1 className="text-3xl font-extrabold text-[#11164a]">{requestType ? requestListTitles[requestType] : "Request Management"}</h1>
+              <p className="mt-1 text-sm font-semibold text-slate-500">Home &gt; Request Management &gt; {requestType ? requestListTitles[requestType] : "Dashboard"}</p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <button type="button" onClick={openForm} className="inline-flex h-11 items-center gap-2 rounded-md bg-[#5b21e8] px-4 text-sm font-extrabold text-white shadow-lg shadow-violet-700/20">
@@ -1327,6 +1529,45 @@ const RequestsPage = () => {
 
           {status && <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800 animate-fade-in">{status}</div>}
 
+          {showTypeSelector && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setShowTypeSelector(false)}>
+              <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-xl font-extrabold text-[#11164a]">New Request</h2>
+                  <button type="button" onClick={() => setShowTypeSelector(false)} className="grid h-9 w-9 place-items-center rounded-md text-slate-600 hover:bg-slate-100">
+                    <FiX className="h-5 w-5" aria-hidden />
+                  </button>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {[
+                    { key: "leave", label: "Leave", icon: FiCalendar, desc: "Annual, sick, or other leave", color: "hover:border-blue-300", iconColor: "text-blue-600" },
+                    { key: "permission", label: "Permission", icon: FiClock, desc: "Short-time permission request", color: "hover:border-amber-300", iconColor: "text-amber-600" },
+                    { key: "late", label: "Late", icon: FiAlertCircle, desc: "Late arrival request", color: "hover:border-red-300", iconColor: "text-red-600" },
+                    { key: "flexible", label: "Flexible Work", icon: FiRefreshCw, desc: "Flexible work arrangement", color: "hover:border-emerald-300", iconColor: "text-emerald-600" },
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => selectRequestType(item.key)}
+                        className={`flex items-center gap-4 rounded-xl border border-slate-200 p-5 text-left transition ${item.color} hover:shadow-md`}
+                      >
+                        <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-slate-100 ${item.iconColor}`}>
+                          <Icon className="h-6 w-6" aria-hidden />
+                        </span>
+                        <div>
+                          <p className="text-lg font-extrabold text-[#11164a]">{item.label}</p>
+                          <p className="mt-1 text-sm font-semibold text-slate-500">{item.desc}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
           {showForm && (
             <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
@@ -1344,16 +1585,26 @@ const RequestsPage = () => {
 
           {!showForm && (
             <>
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                <LeaveStatCard label="Total Requests" value={managementStats.selectedMonthRequests.length} helper={monthLabel(leaveMonth)} icon={FiCalendar} tone="bg-violet-600 text-white" />
-                <LeaveStatCard label="Pending Requests" value={managementStats.pending} helper="Awaiting current approver" icon={FiClock} tone="bg-emerald-600 text-white" />
-                <LeaveStatCard label="Approved This Month" value={managementStats.approved} helper="All request types" icon={FiBarChart2} tone="bg-orange-500 text-white" />
-                <LeaveStatCard label="Rejected This Month" value={managementStats.rejected} helper="All request types" icon={FiXCircle} tone="bg-rose-500 text-white" />
-                <LeaveStatCard label="Pending OT Hours" value={managementStats.pendingOtHours.toFixed(1)} helper="Overtime awaiting approval" icon={FiUsers} tone="bg-blue-600 text-white" />
-              </div>
+              {requestType === "ot" ? (
+                <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+                  <LeaveStatCard label="Total OT Hours" value={`${managementStats.totalOtHours}h`} helper="All overtime hours" icon={FiClock} tone="bg-violet-600 text-white" />
+                  <LeaveStatCard label="Pending OT Requests" value={managementStats.pendingOtCount} helper="Awaiting approval" icon={FiClock} tone="bg-amber-500 text-white" />
+                  <LeaveStatCard label="Approved OT Requests" value={managementStats.approvedOtCount} helper={`${managementStats.approvedOtHours}h approved`} icon={FiBarChart2} tone="bg-emerald-600 text-white" />
+                  <LeaveStatCard label="Rejected OT Requests" value={managementStats.rejectedOtCount} helper="Rejected overtime" icon={FiXCircle} tone="bg-rose-500 text-white" />
+                  <LeaveStatCard label="Paid OT" value={`${managementStats.paidOtHours}h`} helper={`${managementStats.paidOtCount} requests`} icon={FiCheckCircle} tone="bg-blue-600 text-white" />
+                  <LeaveStatCard label="OT Cost Summary" value={`$${managementStats.otCostSummary}`} helper="Estimated approved cost" icon={FiUsers} tone="bg-teal-600 text-white" />
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <LeaveStatCard label="Total Requests" value={managementStats.selectedMonthRequests.length} helper={monthLabel(leaveMonth)} icon={FiCalendar} tone="bg-violet-600 text-white" />
+                  <LeaveStatCard label="Pending Requests" value={managementStats.pending} helper="Awaiting current approver" icon={FiClock} tone="bg-emerald-600 text-white" />
+                  <LeaveStatCard label="Approved This Month" value={managementStats.approved} helper="All request types" icon={FiBarChart2} tone="bg-orange-500 text-white" />
+                  <LeaveStatCard label="Rejected This Month" value={managementStats.rejected} helper="All request types" icon={FiXCircle} tone="bg-rose-500 text-white" />
+                </div>
+              )}
 
               <div className="flex gap-8 overflow-x-auto border-b border-slate-200 bg-white px-4">
-                {requestDashboardTabs.map((tab) => (
+                {dashboardTabs.map((tab) => (
                   <button key={tab} type="button" onClick={() => setLeaveTab(tab)} className={`h-12 border-b-2 px-1 text-sm font-extrabold ${leaveTab === tab ? "border-[#5b21e8] text-[#5b21e8]" : "border-transparent text-slate-700 hover:text-[#5b21e8]"}`}>
                     {tab}
                   </button>
@@ -1361,111 +1612,166 @@ const RequestsPage = () => {
               </div>
 
               {leaveTab === "Dashboard" && (
-                <>
-                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_360px]">
-                    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                      <h2 className="text-lg font-extrabold text-[#11164a]">Request Type Overview</h2>
-                      <div className="mt-4 grid gap-4 md:grid-cols-[220px_minmax(0,1fr)]">
-                        <div className="relative h-[240px]">
+                requestType === "ot" ? (
+                  <>
+                    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_360px]">
+                      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                        <h2 className="text-lg font-extrabold text-[#11164a]">OT by Department</h2>
+                        <div className="mt-4 h-[260px]">
+                          {managementStats.otByDepartment.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={managementStats.otByDepartment} layout="vertical" margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
+                                <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" />
+                                <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontWeight: 700 }} />
+                                <YAxis type="category" dataKey="department" tickLine={false} axisLine={false} tick={{ fill: "#11164a", fontWeight: 700 }} width={100} />
+                                <Tooltip />
+                                <Bar dataKey="hours" name="Hours" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          ) : (
+                            <div className="flex h-full items-center justify-center text-sm font-bold text-slate-400">No OT data</div>
+                          )}
+                        </div>
+                      </section>
+
+                      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                        <h2 className="text-lg font-extrabold text-[#11164a]">Monthly OT Trend</h2>
+                        <div className="mt-4 h-[260px]">
                           <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie data={managementStats.typeData} innerRadius={70} outerRadius={105} dataKey="value" paddingAngle={2}>
-                                {managementStats.typeData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
-                              </Pie>
-                            </PieChart>
+                            <LineChart data={managementStats.monthlyOtTrend || []} margin={{ left: -12, right: 12, top: 8, bottom: 0 }}>
+                              <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" />
+                              <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "#11164a", fontWeight: 700 }} />
+                              <YAxis tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontWeight: 700 }} />
+                              <Tooltip />
+                              <Line type="monotone" dataKey="hours" name="OT Hours" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4 }} />
+                            </LineChart>
                           </ResponsiveContainer>
-                          <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
-                            <div>
-                              <p className="text-3xl font-extrabold text-[#11164a]">{managementStats.selectedMonthRequests.length}</p>
-                              <p className="text-sm font-bold text-[#11164a]">Requests</p>
-                            </div>
-                          </div>
                         </div>
-                        <div className="grid content-center gap-4">
-                          {managementStats.typeData.map((item) => (
-                            <div key={item.name} className="flex items-center justify-between gap-3">
+                      </section>
+
+                      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                        <h2 className="text-lg font-extrabold text-[#11164a]">Top OT Employees</h2>
+                        <div className="mt-4 space-y-3">
+                          {managementStats.topOtEmployees.length > 0 ? managementStats.topOtEmployees.slice(0, 5).map((emp, i) => (
+                            <div key={emp.user_id} className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3 last:border-b-0">
                               <div className="flex items-center gap-3">
-                                <span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
-                                <span className="text-sm font-bold text-[#11164a]">{item.name}</span>
+                                <span className="grid h-8 w-8 place-items-center rounded-full bg-violet-100 text-sm font-extrabold text-[#5b21e8]">{i + 1}</span>
+                                <span className="text-sm font-bold text-[#11164a]">{emp.name}</span>
                               </div>
-                              <span className="text-sm font-extrabold text-[#11164a]">{item.value} requests</span>
+                              <span className="text-sm font-extrabold text-[#11164a]">{emp.hours}h</span>
                             </div>
-                          ))}
-                          <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-3">
-                            <span className="font-extrabold text-[#11164a]">On Leave Today</span>
-                            <span className="font-extrabold text-[#11164a]">{managementStats.onLeaveToday}</span>
+                          )) : <p className="text-sm font-bold text-slate-400">No OT records</p>}
+                        </div>
+                      </section>
+                    </div>
+
+                    <div className="flex flex-col gap-4">
+                      <LeaveRequestsTable
+                        rows={rowsForTab("Dashboard")}
+                        search={leaveSearch}
+                        setSearch={setLeaveSearch}
+                        onOpen={openRequest}
+                        onUpdate={updateRequest}
+                        onMarkPaid={markAsPaid}
+                        title="OT Requests"
+                        recentlyUpdatedId={recentlyUpdatedId}
+                        actionLoadingId={actionLoadingId}
+                        actorRole={role}
+                        currentUserId={currentUser?.id}
+                        approvalFlow={approvalFlow}
+                        deptFilter={deptFilter}
+                        setDeptFilter={setDeptFilter}
+                        departmentOptions={departmentOptions}
+                        unitFilter={unitFilter}
+                        setUnitFilter={setUnitFilter}
+                        unitOptions={unitOptions}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="grid gap-4 xl:grid-cols-2">
+                      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                        <h2 className="text-lg font-extrabold text-[#11164a]">Request Type Overview</h2>
+                        <div className="mt-4 grid gap-4 md:grid-cols-[220px_minmax(0,1fr)]">
+                          <div className="relative h-[240px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                <Pie data={managementStats.typeData} innerRadius={70} outerRadius={105} dataKey="value" paddingAngle={2}>
+                                  {managementStats.typeData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                                </Pie>
+                              </PieChart>
+                            </ResponsiveContainer>
+                            <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
+                              <div>
+                                <p className="text-3xl font-extrabold text-[#11164a]">{managementStats.selectedMonthRequests.length}</p>
+                                <p className="text-sm font-bold text-[#11164a]">Requests</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="grid content-center gap-4">
+                            {managementStats.typeData.map((item) => (
+                              <div key={item.name} className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-3">
+                                  <span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
+                                  <span className="text-sm font-bold text-[#11164a]">{item.name}</span>
+                                </div>
+                                <span className="text-sm font-extrabold text-[#11164a]">{item.value} requests</span>
+                              </div>
+                            ))}
+                            <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-3">
+                              <span className="font-extrabold text-[#11164a]">On Leave Today</span>
+                              <span className="font-extrabold text-[#11164a]">{managementStats.onLeaveToday}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </section>
+                      </section>
 
-                    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                      <div className="flex items-center justify-between">
-                        <h2 className="text-lg font-extrabold text-[#11164a]">Request Summary</h2>
-                        <span className="rounded-md border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700">This Year</span>
-                      </div>
-                      <div className="mt-4 h-[260px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={managementStats.trend} margin={{ left: -12, right: 12, top: 8, bottom: 0 }}>
-                            <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" />
-                            <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#11164a", fontWeight: 700 }} />
-                            <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontWeight: 700 }} />
-                            <Tooltip />
-                            <Line type="monotone" dataKey="Approved" stroke="#22c55e" strokeWidth={3} dot={{ r: 4 }} />
-                            <Line type="monotone" dataKey="Pending" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} />
-                            <Line type="monotone" dataKey="Rejected" stroke="#f43f5e" strokeWidth={3} dot={{ r: 4 }} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </section>
+                      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <h2 className="text-lg font-extrabold text-[#11164a]">Request Summary</h2>
+                          <span className="rounded-md border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700">This Year</span>
+                        </div>
+                        <div className="mt-4 h-[260px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={managementStats.trend} margin={{ left: -12, right: 12, top: 8, bottom: 0 }}>
+                              <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" />
+                              <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#11164a", fontWeight: 700 }} />
+                              <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontWeight: 700 }} />
+                              <Tooltip />
+                              <Line type="monotone" dataKey="Approved" stroke="#22c55e" strokeWidth={3} dot={{ r: 4 }} />
+                              <Line type="monotone" dataKey="Pending" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} />
+                              <Line type="monotone" dataKey="Rejected" stroke="#f43f5e" strokeWidth={3} dot={{ r: 4 }} />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </section>
+                    </div>
 
-                    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                      <div className="flex items-center justify-between">
-                        <h2 className="text-lg font-extrabold text-[#11164a]">Request Statistics</h2>
-                        <span className="text-xs font-bold text-[#5b21e8]">This Month</span>
-                      </div>
-                      <div className="mt-4 space-y-4 text-sm font-bold text-[#11164a]">
-                        <StatLine label="Total Requests" value={managementStats.selectedMonthRequests.length} />
-                        <StatLine label="Approved" value={`${managementStats.approved} (${((managementStats.approved / totalMonth) * 100).toFixed(1)}%)`} tone="text-emerald-600" />
-                        <StatLine label="Pending" value={`${managementStats.selectedMonthRequests.filter((item) => item.status === "pending").length} (${((managementStats.selectedMonthRequests.filter((item) => item.status === "pending").length / totalMonth) * 100).toFixed(1)}%)`} tone="text-orange-500" />
-                        <StatLine label="Rejected" value={`${managementStats.rejected} (${((managementStats.rejected / totalMonth) * 100).toFixed(1)}%)`} tone="text-red-500" />
-                      </div>
-                    </section>
-                  </div>
-
-                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-                    <LeaveRequestsTable
-                      rows={managementRows}
-                      search={leaveSearch}
-                      setSearch={setLeaveSearch}
-                      onOpen={openRequest}
-                      onUpdate={updateRequest}
-                      title="Recent Requests"
-                      recentlyUpdatedId={recentlyUpdatedId}
-                      actionLoadingId={actionLoadingId}
-                      actorRole={role}
-                      currentUserId={currentUser?.id}
-                      approvalFlow={approvalFlow}
-                    />
-                    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                      <div className="flex items-center justify-between">
-                        <h2 className="text-lg font-extrabold text-[#11164a]">Upcoming Public Holidays</h2>
-                        <span className="text-xs font-bold text-[#5b21e8]">View Calendar</span>
-                      </div>
-                      <div className="mt-4 space-y-3">
-                        {upcomingHolidays.map(([name, date]) => (
-                          <div key={name} className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3 last:border-b-0">
-                            <div className="flex items-center gap-3">
-                              <span className="grid h-9 w-9 place-items-center rounded-md bg-violet-100 text-[#5b21e8]"><FiCalendar className="h-4 w-4" /></span>
-                              <span className="text-sm font-extrabold text-[#11164a]">{name}</span>
-                            </div>
-                            <span className="text-xs font-bold text-[#5b21e8]">{date}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </section>
-                  </div>
-                </>
+                    <div className="flex flex-col gap-4">
+                      <LeaveRequestsTable
+                        rows={rowsForTab("Dashboard")}
+                        search={leaveSearch}
+                        setSearch={setLeaveSearch}
+                        onOpen={openRequest}
+                        onUpdate={updateRequest}
+                        onMarkPaid={markAsPaid}
+                        title="Recent Requests"
+                        recentlyUpdatedId={recentlyUpdatedId}
+                        actionLoadingId={actionLoadingId}
+                        actorRole={role}
+                        currentUserId={currentUser?.id}
+                        approvalFlow={approvalFlow}
+                        deptFilter={deptFilter}
+                        setDeptFilter={setDeptFilter}
+                        departmentOptions={departmentOptions}
+                        unitFilter={unitFilter}
+                        setUnitFilter={setUnitFilter}
+                        unitOptions={unitOptions}
+                      />
+                    </div>
+                  </>
+                )
               )}
 
               {leaveTab === "Settings" && (
@@ -1486,32 +1792,55 @@ const RequestsPage = () => {
                   setSearch={setLeaveSearch}
                   onOpen={openRequest}
                   onUpdate={updateRequest}
+                  onMarkPaid={markAsPaid}
                   title={leaveTab}
                   recentlyUpdatedId={recentlyUpdatedId}
                   actionLoadingId={actionLoadingId}
                   actorRole={role}
                   currentUserId={currentUser?.id}
                   approvalFlow={approvalFlow}
+                  deptFilter={deptFilter}
+                  setDeptFilter={setDeptFilter}
+                  departmentOptions={departmentOptions}
+                  unitFilter={unitFilter}
+                  setUnitFilter={setUnitFilter}
+                  unitOptions={unitOptions}
                 />
               )}
 
-              {selectedRequest && (
-                <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                  <div className="mb-4 flex items-center justify-between">
-                    <h2 className="text-lg font-extrabold text-[#11164a]">Request Detail</h2>
-                    <button type="button" onClick={() => setSelectedRequestId(null)} className="grid h-9 w-9 place-items-center rounded-md text-slate-600 hover:bg-slate-100"><FiX className="h-5 w-5" /></button>
-                  </div>
-                  <RequestDetail request={selectedRequest} onCancel={cancelPending} />
-                </section>
-              )}
             </>
           )}
         </div>
       </section>
+
+      {selectedRequest && (() => {
+        const selectedUser = userById.get(selectedRequest.user_id);
+        const currentYear = String(new Date().getFullYear());
+        const userLeaves = items.filter(
+          (r) => r.user_id === selectedRequest.user_id && r.type === "leave" && r.status === "approved" && String(r.date || "").startsWith(currentYear)
+        );
+        const usedAnnual = userLeaves.reduce((sum, r) => {
+          const isSick = String(`${r.leave_type || ""} ${r.reason || ""}`).toLowerCase().includes("sick");
+          return isSick ? sum : sum + getRequestDays(r);
+        }, 0);
+        const remaining = Math.max(0, ANNUAL_LEAVE - usedAnnual);
+        return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setSelectedRequestId(null)}>
+          <div className="relative max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <button type="button" onClick={() => setSelectedRequestId(null)} className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full text-slate-600 hover:bg-slate-100">
+              <FiX className="h-5 w-5" />
+            </button>
+            <RequestDetail request={selectedRequest} onCancel={cancelPending} user={selectedUser} entitlement={ANNUAL_LEAVE} taken={usedAnnual} remaining={remaining} />
+          </div>
+        </div>
+        );
+      })()}
+    </>
     );
   }
 
   return (
+    <>
     <div className="min-h-screen bg-[#3b3b3b] md:bg-white">
       <div className="mx-auto min-h-screen w-full max-w-[512px] bg-white pb-24 shadow-2xl md:max-w-none md:shadow-none">
         <header className="sticky top-0 z-10 bg-white">
@@ -1525,15 +1854,15 @@ const RequestsPage = () => {
               <FiChevronLeft className="h-7 w-7" aria-hidden />
             </button>
             <h1 className="min-w-0 flex-1 truncate text-xl font-extrabold text-black">
-              {showForm
-                ? requestTitles[form.type] || requestTitles.leave
-                : selectedRequest
-                  ? "Request Detail"
+              {showTypeSelector
+                ? "New Request"
+                : showForm
+                  ? requestTitles[form.type] || requestTitles.leave
                   : pageTitle}
             </h1>
             <button
               type="button"
-              onClick={showForm ? () => setShowForm(false) : openForm}
+              onClick={showForm || showTypeSelector ? () => { setShowForm(false); setShowTypeSelector(false); } : openForm}
               className="-mr-2 grid h-10 w-10 shrink-0 place-items-center rounded-full text-black hover:bg-slate-100"
               aria-label={showForm ? "Close form" : "Add new request"}
             >
@@ -1547,6 +1876,42 @@ const RequestsPage = () => {
         </header>
 
         <main className="px-6 pt-2">
+          {showTypeSelector && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setShowTypeSelector(false)}>
+              <div className="mx-4 w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-lg font-extrabold text-black">New Request</h2>
+                  <button type="button" onClick={() => setShowTypeSelector(false)} className="grid h-8 w-8 place-items-center rounded-full text-slate-600 hover:bg-slate-100">
+                    <FiX className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="grid gap-3">
+                  {[
+                    { key: "leave", label: "Leave", icon: FiCalendar, iconColor: "text-blue-600" },
+                    { key: "permission", label: "Permission", icon: FiClock, iconColor: "text-amber-600" },
+                    { key: "late", label: "Late", icon: FiAlertCircle, iconColor: "text-red-600" },
+                    { key: "flexible", label: "Flexible Work", icon: FiRefreshCw, iconColor: "text-emerald-600" },
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => selectRequestType(item.key)}
+                        className="flex items-center gap-4 rounded-xl border border-slate-200 p-4 text-left transition hover:border-emerald-300 hover:shadow-md"
+                      >
+                        <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-slate-100 ${item.iconColor}`}>
+                          <Icon className="h-5 w-5" aria-hidden />
+                        </span>
+                        <span className="text-base font-extrabold text-black">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
           {showForm && (
             <form onSubmit={create} className="pb-8">
               {renderActiveForm()}
@@ -1560,10 +1925,6 @@ const RequestsPage = () => {
                 </p>
               )}
             </form>
-          )}
-
-          {!showForm && selectedRequest && (
-            <RequestDetail request={selectedRequest} onCancel={cancelPending} />
           )}
 
           {!showForm && !selectedRequest && (
@@ -1586,15 +1947,32 @@ const RequestsPage = () => {
         </main>
       </div>
     </div>
+
+    {selectedRequest && (() => {
+      const selectedUser = userById.get(selectedRequest.user_id);
+      const currentYear = String(new Date().getFullYear());
+      const userLeaves = items.filter(
+        (r) => r.user_id === selectedRequest.user_id && r.type === "leave" && r.status === "approved" && String(r.date || "").startsWith(currentYear)
+      );
+      const usedAnnual = userLeaves.reduce((sum, r) => {
+        const isSick = String(`${r.leave_type || ""} ${r.reason || ""}`).toLowerCase().includes("sick");
+        return isSick ? sum : sum + getRequestDays(r);
+      }, 0);
+      const remaining = Math.max(0, ANNUAL_LEAVE - usedAnnual);
+      return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setSelectedRequestId(null)}>
+        <div className="relative max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <button type="button" onClick={() => setSelectedRequestId(null)} className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full text-slate-600 hover:bg-slate-100">
+            <FiX className="h-5 w-5" />
+          </button>
+          <RequestDetail request={selectedRequest} onCancel={cancelPending} user={selectedUser} entitlement={ANNUAL_LEAVE} taken={usedAnnual} remaining={remaining} />
+        </div>
+      </div>
+      );
+    })()}
+    </>
   );
 };
-
-const StatLine = ({ label, value, tone = "text-[#11164a]" }) => (
-  <div className="flex items-center justify-between border-b border-slate-100 pb-3 last:border-b-0">
-    <span>{label}</span>
-    <span className={`font-extrabold ${tone}`}>{value}</span>
-  </div>
-);
 
 const ApprovalFlowSettings = ({ flow, onToggleStage, onMoveStage, onSave, saving, canEdit }) => {
   const selected = Array.isArray(flow) ? flow : defaultApprovalFlow;
@@ -1687,25 +2065,31 @@ const ApprovalFlowSettings = ({ flow, onToggleStage, onMoveStage, onSave, saving
   );
 };
 
-const LeaveRequestsTable = ({ rows, search, setSearch, onOpen, onUpdate, title, recentlyUpdatedId, actionLoadingId, actorRole, currentUserId, approvalFlow }) => (
+const LeaveRequestsTable = ({ rows, search, setSearch, onOpen, onUpdate, onMarkPaid, title, recentlyUpdatedId, actionLoadingId, actorRole, currentUserId, approvalFlow, deptFilter, setDeptFilter, departmentOptions, unitFilter, setUnitFilter, unitOptions }) => (
   <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
     <div className="flex flex-col gap-3 border-b border-slate-100 p-4 md:flex-row md:items-center md:justify-between">
       <h2 className="text-lg font-extrabold text-[#11164a]">{title}</h2>
       <div className="flex flex-wrap items-center gap-3">
-        <label className="flex h-10 w-full items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 md:w-72">
+        <label className="flex h-10 w-full items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 md:w-48">
           <FiSearch className="h-4 w-4 text-slate-400" aria-hidden />
-          <input value={search} onChange={(event) => setSearch(event.target.value)} className="w-full bg-transparent outline-none placeholder:text-slate-400" placeholder="Search by employee..." />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} className="w-full bg-transparent outline-none placeholder:text-slate-400" placeholder="Search employee..." />
         </label>
-        <button type="button" className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm font-bold text-slate-700">
-          <FiFilter className="h-4 w-4" aria-hidden />
-          Filter
-        </button>
+        <select value={deptFilter} onChange={(event) => setDeptFilter(event.target.value)} className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none">
+          <option value="all">All Departments</option>
+          {departmentOptions.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
+        </select>
+        <select value={unitFilter} onChange={(event) => setUnitFilter(event.target.value)} className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none">
+          <option value="all">All Units</option>
+          {unitOptions.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+        </select>
       </div>
     </div>
     <div className="overflow-x-auto">
       <table className="w-full min-w-[1120px] text-left text-sm">
         <thead className="bg-slate-50 text-xs font-extrabold uppercase text-[#11164a]">
           <tr>
+            <th className="px-5 py-4 w-12">#</th>
+            <th className="px-5 py-4">Employee ID</th>
             <th className="px-5 py-4">Employee</th>
             <th className="px-5 py-4">Request Type</th>
             <th className="px-5 py-4">Details</th>
@@ -1715,16 +2099,18 @@ const LeaveRequestsTable = ({ rows, search, setSearch, onOpen, onUpdate, title, 
             <th className="px-5 py-4">Status</th>
             <th className="px-5 py-4">Pending On</th>
             <th className="px-5 py-4">Applied On</th>
-            <th className="px-5 py-4 text-right">Action</th>
+            <th className="px-5 py-4 text-right">View</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {rows.slice(0, 8).map(({ request, user, detail, range, unit, reason }) => {
+          {rows.slice(0, 8).map(({ request, user, detail, range, unit, reason }, index) => {
             const pendingStage = getPendingApprovalStage(request, approvalFlow);
             const canApprove = canCurrentUserApprove(request, actorRole, currentUserId, approvalFlow);
             const isWaitingOnSomeoneElse = request.status === "pending" && pendingStage && !canApprove;
             return (
             <tr key={request.id} className={`${recentlyUpdatedId === request.id ? "animate-leave-row bg-emerald-50/80" : "hover:bg-slate-50/70"}`}>
+              <td className="px-5 py-4 text-center font-bold text-[#11164a]">{index + 1}</td>
+              <td className="px-5 py-4 font-semibold text-[#11164a]">{user?.emp_code || "-"}</td>
               <td className="px-5 py-4">
                 <div className="flex items-center gap-3">
                   <span className="grid h-10 w-10 place-items-center rounded-full bg-slate-200 text-xs font-extrabold text-[#11164a]">
@@ -1782,13 +2168,23 @@ const LeaveRequestsTable = ({ rows, search, setSearch, onOpen, onUpdate, title, 
                       )}
                     </>
                   )}
+                  {request.status === "approved" && request.type === "ot" && actorRole === "management_hr" && (
+                    <button
+                      type="button"
+                      onClick={() => onMarkPaid?.(request.id)}
+                      disabled={actionLoadingId === request.id}
+                      className="rounded-md bg-blue-100 px-3 py-1.5 text-xs font-extrabold text-blue-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                    >
+                      {actionLoadingId === request.id ? "Saving..." : "Mark as Paid"}
+                    </button>
+                  )}
                 </div>
               </td>
             </tr>
           );
           })}
           {rows.length === 0 && (
-            <tr><td colSpan={10} className="px-5 py-10 text-center text-sm font-bold text-slate-400">No requests found.</td></tr>
+            <tr><td colSpan={12} className="px-5 py-10 text-center text-sm font-bold text-slate-400">No requests found.</td></tr>
           )}
         </tbody>
       </table>

@@ -2,14 +2,12 @@ import { useEffect, useState } from "react";
 import {
   FiAlertTriangle,
   FiCheckCircle,
-  FiChevronLeft,
   FiClock,
   FiFileText,
   FiLogIn,
   FiLogOut,
   FiMapPin,
 } from "react-icons/fi";
-import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
 const toDate = (value) => {
@@ -30,11 +28,9 @@ const dateKey = (value) => {
 const formatTime = (value) => {
   if (!value) return "---";
   if (/[AP]M/i.test(value)) return value;
-
   const [hour = "0", minute = "00"] = String(value).split(":");
   const date = new Date();
   date.setHours(Number(hour), Number(minute), 0, 0);
-
   return date.toLocaleTimeString(undefined, {
     hour: "2-digit",
     minute: "2-digit",
@@ -59,7 +55,6 @@ const mapUrl = (lat, lon) => {
 const getStatus = (item) => {
   if (item.status) return String(item.status).toUpperCase();
   if (getCheckIn(item) || getCheckOut(item)) return "PRESENT";
-
   const day = toDate(item.date)?.getDay();
   return day === 0 || day === 6 ? "HOLIDAY" : "ABSENT";
 };
@@ -73,9 +68,7 @@ const getStatusClass = (status) => {
 
 const StatusPill = ({ status }) => (
   <span
-    className={`inline-flex h-7 items-center rounded-xl px-3 text-[11px] font-bold ${getStatusClass(
-      status,
-    )}`}
+    className={`inline-flex h-7 items-center rounded-xl px-3 text-[11px] font-bold ${getStatusClass(status)}`}
   >
     {status}
   </span>
@@ -83,14 +76,10 @@ const StatusPill = ({ status }) => (
 
 const ScanTime = ({ icon: Icon, value, muted }) => (
   <span
-    className={`inline-flex items-center gap-1.5 text-sm font-semibold ${
-      muted ? "text-slate-400" : "text-slate-800"
-    }`}
+    className={`inline-flex items-center gap-1.5 text-sm font-semibold ${muted ? "text-slate-400" : "text-slate-800"}`}
   >
     <Icon
-      className={`h-3.5 w-3.5 ${
-        muted ? "text-slate-300" : "text-emerald-700"
-      }`}
+      className={`h-3.5 w-3.5 ${muted ? "text-slate-300" : "text-emerald-700"}`}
       aria-hidden
     />
     {formatTime(value)}
@@ -234,7 +223,7 @@ const AttendanceRow = ({ item, expanded, onToggle }) => {
   );
 };
 
-export default function AttendancePage() {
+export default function MyAttendancePage() {
   const now = new Date();
   const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
   const [startDate, setStartDate] = useState(dateKey(firstDay));
@@ -242,24 +231,17 @@ export default function AttendancePage() {
   const [records, setRecords] = useState([]);
   const [selectedDate, setSelectedDate] = useState("");
   const [loading, setLoading] = useState(false);
-  const [unauthenticated, setUnauthenticated] = useState(false);
-  const navigate = useNavigate();
 
   const load = async () => {
     if (!startDate || !endDate) return;
     setLoading(true);
-    setUnauthenticated(false);
-
     try {
       const res = await api.get(
         `/api/attendance/range?start_date=${startDate}&end_date=${endDate}`,
       );
       const rangeRecords = res.data?.records || res.data || [];
       setRecords(Array.isArray(rangeRecords) ? rangeRecords : []);
-    } catch (err) {
-      if (err?.response?.status === 403 || err?.response?.status === 401) {
-        setUnauthenticated(true);
-      }
+    } catch {
       setRecords([]);
     } finally {
       setLoading(false);
@@ -272,90 +254,68 @@ export default function AttendancePage() {
   }, [startDate, endDate]);
 
   return (
-    <div className="min-h-screen bg-[#eeeeee] pb-28">
-      <header className="sticky top-0 z-10 bg-white">
-        <div className="flex h-[72px] items-center gap-5 px-4 md:px-6">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="-ml-1 grid h-10 w-10 place-items-center rounded-full text-black hover:bg-slate-100"
-            aria-label="Go back"
-          >
-            <FiChevronLeft className="h-7 w-7" aria-hidden />
-          </button>
-          <h1 className="text-base font-extrabold text-black">
-            Attendances View
-          </h1>
-        </div>
-
-        <div className="flex items-center gap-3 border-t border-slate-50 px-5 py-2 text-sm font-bold text-slate-500">
-          <label className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-400">From</span>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm font-semibold text-slate-700 outline-none focus:border-blue-400"
-            />
-          </label>
-          <label className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-400">To</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm font-semibold text-slate-700 outline-none focus:border-blue-400"
-            />
-          </label>
-        </div>
-      </header>
-
-      <main className="space-y-2 p-3 md:space-y-2.5 md:p-4">
-        {loading &&
-          Array.from({ length: 8 }, (_, index) => (
-            <div
-              key={index}
-              className="h-[80px] animate-pulse rounded-lg bg-white"
-            />
-          ))}
-
-        {!loading && unauthenticated && (
-          <div className="rounded-lg bg-white p-6 text-center text-sm font-semibold text-slate-500">
-            Please{" "}
-            <button
-              type="button"
-              onClick={() => navigate("/login")}
-              className="font-extrabold text-emerald-700"
-            >
-              login
-            </button>{" "}
-            to view attendance.
+    <section className="min-h-[calc(100vh-4rem)] bg-[#f5f8fc] px-4 py-6 md:px-6">
+      <div className="mx-auto max-w-[1600px] space-y-4">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <h1 className="text-3xl font-extrabold text-[#111b4f]">My Attendance</h1>
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              View your personal attendance records
+            </p>
           </div>
-        )}
 
-        {!loading &&
-          !unauthenticated &&
-          records.length === 0 && (
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-extrabold text-slate-700 shadow-sm">
+              <span className="text-xs text-slate-400">From</span>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-[130px] bg-transparent font-extrabold outline-none"
+              />
+            </label>
+            <label className="flex h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-extrabold text-slate-700 shadow-sm">
+              <span className="text-xs text-slate-400">To</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-[130px] bg-transparent font-extrabold outline-none"
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {loading &&
+            Array.from({ length: 5 }, (_, index) => (
+              <div
+                key={index}
+                className="h-[80px] animate-pulse rounded-lg bg-white"
+              />
+            ))}
+
+          {!loading && records.length === 0 && (
             <div className="rounded-lg bg-white p-6 text-center text-sm font-semibold text-slate-400">
               No attendance records found for this date range.
             </div>
           )}
 
-        {!loading &&
-          !unauthenticated &&
-          records.map((item) => (
-            <AttendanceRow
-              key={item.date}
-              item={item}
-              expanded={selectedDate === item.date}
-              onToggle={() =>
-                setSelectedDate((current) =>
-                  current === item.date ? "" : item.date,
-                )
-              }
-            />
-          ))}
-      </main>
-    </div>
+          {!loading &&
+            records.map((item) => (
+              <AttendanceRow
+                key={item.date}
+                item={item}
+                expanded={selectedDate === item.date}
+                onToggle={() =>
+                  setSelectedDate((current) =>
+                    current === item.date ? "" : item.date,
+                  )
+                }
+              />
+            ))}
+        </div>
+      </div>
+    </section>
   );
 }

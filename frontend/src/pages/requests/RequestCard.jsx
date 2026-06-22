@@ -7,7 +7,7 @@ const requestTypeLabels = {
   ot: "Overtime",
 };
 
-const reasonMetaPrefixes = [
+export const reasonMetaPrefixes = [
   "Start shift:",
   "End shift:",
   "End date:",
@@ -43,6 +43,7 @@ const dateDiffDays = (startDate, endDate) => {
 
 export const statusClass = (status) => {
   if (status === "approved") return "bg-[#e8f2df] text-emerald-700";
+  if (status === "paid") return "bg-blue-100 text-blue-700";
   if (status === "rejected") return "bg-[#ffe1e4] text-red-600";
   if (status === "cancelled") return "bg-slate-100 text-slate-500";
   if (status === "skipped") return "bg-slate-50 text-slate-400";
@@ -83,7 +84,7 @@ const formatDayMonth = (value) => {
   });
 };
 
-const formatRequestTime = (value) => {
+export const formatRequestTime = (value) => {
   if (!value) return "00h 00m";
   const [hour = "00", minute = "00"] = String(value).split(":");
   return `${hour.padStart(2, "0")}h ${minute.padStart(2, "0")}m`;

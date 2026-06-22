@@ -69,6 +69,11 @@ def ensure_runtime_schema(engine) -> None:
                 "hr_approved_at": "TIMESTAMP",
             },
         )
+        # Drop old Enum CHECK constraint on status column so "paid" is accepted
+        _drop_enum_check(engine, "requests", "status")
+
+    if "ot_requests" in tables:
+        _drop_enum_check(engine, "ot_requests", "status")
 
     if "employee_profiles" in tables:
         _add_missing_columns(
@@ -138,3 +143,33 @@ def _boolean_type(dialect: str, default: str | None) -> str:
     if dialect == "sqlite":
         return f"{type_name} DEFAULT 0"
     return f"{type_name} DEFAULT {default}"
+
+
+def _drop_enum_check(engine, table_name: str, column: str) -> None:
+    """Drop CHECK constraint on an enum column for SQLite so new values are accepted."""
+    import re
+
+    if engine.dialect.name != "sqlite":
+        return
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("SELECT sql FROM sqlite_master WHERE type='table' AND name=:t"),
+            {"t": table_name},
+        ).fetchone()
+        if not row or not row[0]:
+            return
+        raw = row[0]
+        cleaned = re.sub(
+            rf",?\s*CHECK\s*\(\s*{re.escape(column)}\s+IN\s*\([^)]+\)\s*\)",
+            "",
+            raw,
+            flags=re.IGNORECASE,
+        )
+        if cleaned == raw:
+            return
+        conn.execute(text("PRAGMA writable_schema = ON"))
+        conn.execute(
+            text("UPDATE sqlite_master SET sql = :sql WHERE type='table' AND name=:t"),
+            {"sql": cleaned, "t": table_name},
+        )
+        conn.execute(text("PRAGMA writable_schema = OFF"))

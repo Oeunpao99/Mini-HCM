@@ -6,7 +6,7 @@ from app.core.time_rules import (
     standard_checkin_time,
     standard_checkout_time,
 )
-from app.models.attendance import Attendance
+from app.models.attendance.models import Attendance
 from app.models.request import Request
 from sqlalchemy import and_, extract
 from sqlalchemy.orm import Session

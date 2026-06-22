@@ -4,6 +4,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
 import AdminPage from "./pages/AdminPage";
 import AttendancePage from "./pages/AttendancePage";
+import MyAttendancePage from "./pages/MyAttendancePage";
 import DashboardPage from "./pages/DashboardPage";
 import HrisPage from "./pages/HrisPage";
 import LoginPage from "./pages/LoginPage";
@@ -11,6 +12,7 @@ import PayslipPage from "./pages/PayslipPage";
 import ProfilePage from "./pages/ProfilePage";
 import ReportPage from "./pages/ReportPage";
 import RequestsPage from "./pages/RequestsPage";
+import ShiftPage from "./pages/ShiftPage";
 import SwapPage from "./pages/SwapPage";
 
 const App = () => {
@@ -54,6 +56,19 @@ const App = () => {
       />
 
       <Route
+        path="/my-attendance"
+        element={
+          <ProtectedRoute
+            roles={["line_manager", "department_head", "management_hr", "payroll_officer"]}
+          >
+            <Layout>
+              <MyAttendancePage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/report"
         element={
           <ProtectedRoute>
@@ -81,6 +96,19 @@ const App = () => {
           <ProtectedRoute>
             <Layout>
               <SwapPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/shift"
+        element={
+          <ProtectedRoute
+            roles={["line_manager", "department_head", "management_hr", "payroll_officer"]}
+          >
+            <Layout>
+              <ShiftPage />
             </Layout>
           </ProtectedRoute>
         }

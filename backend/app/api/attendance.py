@@ -18,7 +18,7 @@ from app.api.deps import (
     scoped_user_ids,
 )
 from app.core.time_rules import app_now, app_today, checkin_window, to_app_datetime
-from app.models.attendance import Attendance
+from app.models.attendance.models import Attendance
 from app.models.company_location import CompanyLocation
 from app.models.location_alert import LocationAlert
 from app.models.user import User
@@ -297,6 +297,43 @@ def monthly_record(
     )
     stats = month_stats(db, user.id, year, month)
     return MonthlyAttendanceOut(records=rows, **stats)
+
+
+@router.get("/range")
+def range_record(
+    start_date: str,
+    end_date: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    auto_checkout_open_records(db, user.id)
+    try:
+        sd = datetime.strptime(start_date, "%Y-%m-%d").date()
+        ed = datetime.strptime(end_date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+
+    rows = (
+        db.query(Attendance)
+        .filter(
+            Attendance.user_id == user.id,
+            Attendance.date >= sd,
+            Attendance.date <= ed,
+        )
+        .order_by(Attendance.date.asc())
+        .all()
+    )
+
+    total_worked_days = sum(1 for r in rows if r.check_in_time)
+    total_late_days = sum(1 for r in rows if r.is_late)
+    total_ot_hours = float(sum((r.worked_hours or 0) - 8 for r in rows if (r.worked_hours or 0) > 8))
+
+    return {
+        "records": [AttendanceRecordOut.model_validate(r).model_dump() for r in rows],
+        "total_worked_days": total_worked_days,
+        "total_late_days": total_late_days,
+        "total_ot_hours": round(total_ot_hours, 1),
+    }
 
 
 @router.get("/monthly/export")

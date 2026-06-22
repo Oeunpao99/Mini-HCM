@@ -1,9 +1,6 @@
-# app/db/base.py
 from sqlalchemy.orm import declarative_base
 
-
-# Now import all your models
-from app.models.attendance import Attendance
+from app.models.attendance.models import Attendance
 from app.models.app_setting import AppSetting
 from app.models.company_location import CompanyLocation
 from app.models.hris import (
@@ -18,27 +15,32 @@ from app.models.hris import (
     ShiftSchedule,
     TrainingRecord,
 )
+from app.models.leave.models import LeaveRequest
 from app.models.location_alert import LocationAlert
+from app.models.ot.models import OtRequest
 from app.models.request import Request
+from app.models.shift.models import ShiftMaster
 from app.models.swap_request import SwapRequest
 from app.models.user import User
 
-# Create the declarative base
 Base = declarative_base()
 
 
 __all__ = [
-    "Base",  # Add Base to exports
+    "Base",
     "User",
     "AppSetting",
     "CompanyLocation",
     "Attendance",
+    "LeaveRequest",
+    "OtRequest",
     "Request",
     "SwapRequest",
     "LocationAlert",
     "EmployeeProfile",
     "EmployeeHistory",
     "EmployeeMovementRequest",
+    "ShiftMaster",
     "ShiftSchedule",
     "ScheduleChange",
     "PayrollRecord",

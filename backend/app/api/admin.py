@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import (
     DEPARTMENT_HEAD_ROLE,
@@ -11,7 +11,8 @@ from app.api.deps import (
     normalize_role,
     scoped_user_ids,
 )
-from app.models.attendance import Attendance
+from app.models.attendance.models import Attendance
+from app.models.hris import EmployeeProfile
 from app.models.location_alert import LocationAlert
 from app.models.user import User
 from app.schemas.attendance import AttendanceRecordOut
@@ -25,7 +26,13 @@ def visible_users(
     user=Depends(require_roles(LINE_MANAGER_ROLE, DEPARTMENT_HEAD_ROLE, MANAGEMENT_HR_ROLE, PAYROLL_OFFICER_ROLE)),
 ):
     user_ids = scoped_user_ids(db, user, include_self=True)
-    rows = db.query(User).filter(User.id.in_(user_ids)).order_by(User.name.asc()).all()
+    rows = (
+        db.query(User)
+        .options(joinedload(User.profile))
+        .filter(User.id.in_(user_ids))
+        .order_by(User.name.asc())
+        .all()
+    )
     return [
         {
             "id": row.id,
@@ -35,6 +42,8 @@ def visible_users(
             "role": normalize_role(row.role),
             "department": row.department,
             "manager_id": row.manager_id,
+            "position": row.profile.position if row.profile else None,
+            "sub_department": row.profile.sub_department if row.profile else None,
         }
         for row in rows
     ]

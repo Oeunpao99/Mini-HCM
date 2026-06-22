@@ -197,13 +197,29 @@ def _seed_hris_data(db: Session, users: list[User], reviewer_id: int, payroll_of
     for user in users:
         role = user.role
         salary = salary_by_role.get(role, Decimal("900.00"))
-        if not db.query(EmployeeProfile).filter(EmployeeProfile.user_id == user.id).first():
+        sub_dept = {
+            "EMP001": "Recruitment",
+            "EMP004": "Administration",
+            "EMP009": "Recruitment",
+            "EMP002": "AI",
+            "EMP006": "AI",
+            "EMP007": "Web Developer",
+            "EMP012": "Web Developer",
+            "EMP003": "Payroll",
+            "EMP008": "Payroll",
+            "EMP011": "Payroll",
+            "EMP005": "Support",
+            "EMP010": "Support",
+        }.get(user.emp_code)
+        profile = db.query(EmployeeProfile).filter(EmployeeProfile.user_id == user.id).first()
+        if not profile:
             db.add(
                 EmployeeProfile(
                     user_id=user.id,
                     phone=f"+855 12 {user.id:06d}",
                     address="Phnom Penh",
                     position=_position_for_role(role),
+                    sub_department=sub_dept,
                     contract_type="full_time",
                     contract_start_date=date(2026, 1, 1),
                     basic_salary=salary,
@@ -211,6 +227,8 @@ def _seed_hris_data(db: Session, users: list[User], reviewer_id: int, payroll_of
                     status="active",
                 )
             )
+        else:
+            profile.sub_department = sub_dept
 
         if not db.query(EmployeeHistory).filter(EmployeeHistory.user_id == user.id).first():
             db.add(

@@ -13,7 +13,7 @@ from app.api.deps import (
     require_roles,
     scoped_user_ids,
 )
-from app.models.attendance import Attendance
+from app.models.attendance.models import Attendance
 from app.models.swap_request import SwapRequest
 from app.models.user import User
 from app.schemas.swap import SwapCreateIn, SwapOut, SwapRespondIn
