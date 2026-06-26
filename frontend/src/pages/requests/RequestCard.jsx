@@ -13,9 +13,10 @@ export const reasonMetaPrefixes = [
   "End date:",
   "Return date:",
   "Days:",
+  "Half day:",
   "Shift:",
   "Duration:",
-  "Request type:",
+  "Leave type:",
   "Flexible type:",
   "Project:",
   "Customer:",
@@ -24,6 +25,7 @@ export const reasonMetaPrefixes = [
   "OT type:",
   "OT status:",
   "Hour work:",
+  "Remarks:",
 ];
 
 const stageLabels = [

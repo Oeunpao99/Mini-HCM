@@ -13,6 +13,7 @@ export const AuthProvider = ({ children }) => {
   const [role, setRole] = useState(normalizeRole(localStorage.getItem("role")));
   const [name, setName] = useState(localStorage.getItem("name"));
   const [empCode, setEmpCode] = useState(localStorage.getItem("empCode"));
+  const [department, setDepartment] = useState(localStorage.getItem("department"));
 
   const login = async (emp_code, password) => {
     const { data } = await api.post("/api/auth/login", { emp_code, password });
@@ -21,10 +22,12 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("role", normalizedRole);
     localStorage.setItem("name", data.name);
     localStorage.setItem("empCode", emp_code);
+    localStorage.setItem("department", data.department || "");
     setToken(data.access_token);
     setRole(normalizedRole);
     setName(data.name);
     setEmpCode(emp_code);
+    setDepartment(data.department || "");
   };
 
   const logout = () => {
@@ -33,11 +36,12 @@ export const AuthProvider = ({ children }) => {
     setRole(null);
     setName(null);
     setEmpCode(null);
+    setDepartment(null);
   };
 
   const value = useMemo(
-    () => ({ token, role, name, empCode, login, logout }),
-    [token, role, name, empCode],
+    () => ({ token, role, name, empCode, department, login, logout }),
+    [token, role, name, empCode, department],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

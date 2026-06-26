@@ -11,6 +11,7 @@ class CreateRequestIn(BaseModel):
     leave_type: str | None = None
     backup_user_id: int | None = None
     reason: str | None = None
+    admin_remarks: str | None = None
 
 
 class UpdateRequestStatusIn(BaseModel):

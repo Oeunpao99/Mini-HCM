@@ -90,7 +90,29 @@ const leaveTypeColors = {
   special: "#f59e0b",
   unpaid: "#8b5cf6",
 };
-const requestDashboardTabs = ["Dashboard", "All Requests", "Leave", "Permission", "Overtime", "Flexible Work", "My Team Requests", "Reports", "Settings"];
+const suggestedLeaveTabs = [
+  {
+    group: "Leave Request",
+    items: ["New Leave Request", "Leave Calendar", "Request History"],
+  },
+  {
+    group: "Leave Balance",
+    items: ["Entitlement", "Leave Taken", "Remaining Balance"],
+  },
+  {
+    group: "Approval Management",
+    items: ["Pending Requests", "Approved Requests", "Rejected Requests"],
+  },
+  {
+    group: "Leave Calendar",
+    items: ["Team Leave Calendar", "Department Leave Calendar", "Company Leave Calendar"],
+  },
+  {
+    group: "Leave Reports",
+    items: ["Leave Summary Report", "Leave Balance Report", "Leave Utilization Report"],
+  },
+];
+const otDashboardTabs = ["Dashboard", "Overtime", "Reports"];
 const approvalStageDefinitions = [
   { key: "backup", statusKey: "backup_status", label: "Backup Person", helper: "Optional handover confirmation from the selected backup employee." },
   { key: "line_manager", statusKey: "line_manager_status", label: "Line Manager", helper: "Direct manager approval for team staffing and workload." },
@@ -149,6 +171,7 @@ const requestReasonPreview = (reason) => {
     "End date:",
     "Return date:",
     "Days:",
+    "Half day:",
     "Shift:",
     "Duration:",
     "Request type:",
@@ -160,6 +183,7 @@ const requestReasonPreview = (reason) => {
     "OT type:",
     "OT status:",
     "Hour work:",
+    "Remarks:",
   ];
   return String(reason || "")
     .split("\n")
@@ -352,6 +376,15 @@ const AttachmentField = ({ attachment, onChange, label = "Attachment" }) => (
   </FieldShell>
 );
 
+const ReadOnlyField = ({ value, placeholder = "Auto" }) => (
+  <input
+    className={`${inputClass} cursor-not-allowed bg-slate-100 text-slate-600`}
+    value={value || ""}
+    placeholder={placeholder}
+    readOnly
+  />
+);
+
 const BackupUserField = ({
   backupOptions,
   backupSearch,
@@ -423,7 +456,9 @@ const initialForm = {
   start_shift: "",
   end_shift: "",
   return_date: "",
+  half_day: false,
   reason: "",
+  remarks: "",
   permission_date: "",
   permission_shift: "",
   permission_duration: "",
@@ -447,7 +482,7 @@ const initialForm = {
 const RequestsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { role, empCode } = useAuth();
+  const { role, empCode, name, department } = useAuth();
   const isManagement = managementRoles.includes(role);
   const [form, setForm] = useState(initialForm);
   const [attachment, setAttachment] = useState(null);
@@ -455,7 +490,7 @@ const RequestsPage = () => {
   const [assignedItems, setAssignedItems] = useState([]);
   const [backupOptions, setBackupOptions] = useState([]);
   const [users, setUsers] = useState([]);
-  const [leaveTab, setLeaveTab] = useState("Dashboard");
+  const [leaveTab, setLeaveTab] = useState("Request History");
   const [leaveSearch, setLeaveSearch] = useState("");
   const [leaveMonth, setLeaveMonth] = useState(monthKey());
   const [approvalFlow, setApprovalFlow] = useState(defaultApprovalFlow);
@@ -596,6 +631,33 @@ const RequestsPage = () => {
     () => users.find((user) => String(user.emp_code) === String(empCode)) || null,
     [empCode, users],
   );
+  const formUser = currentUser || {
+    emp_code: empCode,
+    name,
+    department,
+  };
+  const formLeaveBalance = useMemo(() => {
+    const currentYear = String(new Date().getFullYear());
+    const source = currentUser
+      ? items.filter((request) => request.user_id === currentUser.id)
+      : items;
+    const approvedLeaves = source.filter(
+      (request) =>
+        request.type === "leave" &&
+        request.status === "approved" &&
+        String(request.date || "").startsWith(currentYear),
+    );
+    const taken = approvedLeaves.reduce((sum, request) => sum + getRequestDays(request), 0);
+    return {
+      entitlement: ANNUAL_LEAVE,
+      taken,
+      remaining: Math.max(0, ANNUAL_LEAVE - taken),
+    };
+  }, [currentUser, items]);
+  const nextLeaveRequestNo = useMemo(() => {
+    const maxId = items.reduce((max, request) => Math.max(max, Number(request.id) || 0), 0);
+    return `LR-${String(maxId + 1).padStart(5, "0")}`;
+  }, [items]);
 
   const departmentOptions = useMemo(
     () => [...new Set(users.map((user) => user.department).filter(Boolean))],
@@ -791,12 +853,14 @@ const RequestsPage = () => {
     () => dateDiffDays(form.start_date, form.end_date),
     [form.end_date, form.start_date],
   );
+  const leaveTotalDays = form.half_day ? 0.5 : days;
 
   useEffect(() => {
     setStatusFilter("all");
     setVisibleCount(6);
     setSelectedRequestId(null);
     setShowForm(false);
+    setLeaveTab(requestType === "ot" ? "Dashboard" : "Request History");
   }, [requestType]);
 
   useEffect(() => {
@@ -900,16 +964,19 @@ const RequestsPage = () => {
       date: form.start_date,
       start_time: "",
       end_time: "",
-      reason: [
-        form.reason,
-        `Start shift: ${form.start_shift || "-"}`,
-        `End shift: ${form.end_shift || "-"}`,
-        `End date: ${form.end_date || "-"}`,
-        `Return date: ${returnDate || "-"}`,
-        `Days: ${days}`,
-      ]
-        .filter(Boolean)
-        .join("\n"),
+        reason: [
+          form.reason,
+          `Start shift: ${form.start_shift || "-"}`,
+          `End shift: ${form.end_shift || "-"}`,
+          `End date: ${form.end_date || "-"}`,
+          `Return date: ${returnDate || "-"}`,
+          `Days: ${leaveTotalDays}`,
+          `Half day: ${form.half_day ? "Yes" : "No"}`,
+          form.remarks ? `Remarks: ${form.remarks}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      admin_remarks: form.remarks || null,
     };
   };
 
@@ -1023,7 +1090,7 @@ const RequestsPage = () => {
     setActionLoadingId(id);
     try {
       await api.put("/api/requests/mark-paid", { request_id: id });
-      await loadRequests();
+      await load();
     } catch (err) {
       setStatus(err?.response?.data?.detail || err.message || "Could not mark OT as paid");
     } finally {
@@ -1057,66 +1124,150 @@ const RequestsPage = () => {
 
   const renderLeaveForm = () => (
     <>
-      <h2 className="mb-4 text-xl font-extrabold text-black">Leave Duration</h2>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-        <FieldShell label="Start Date" required>
-          <DateField
-            value={form.start_date}
-            onChange={(value) => updateForm({ start_date: value })}
-            required
+      <section className="rounded-lg border border-slate-200 p-4">
+        <h3 className="mb-4 text-lg font-extrabold text-black">Employee Information</h3>
+        <div className="grid gap-4 md:grid-cols-3">
+          <FieldShell label="Employee ID" required>
+            <ReadOnlyField value={formUser.emp_code} placeholder="Employee reference" />
+          </FieldShell>
+          <FieldShell label="Employee Name" required>
+            <ReadOnlyField value={formUser.name} placeholder="Employee name" />
+          </FieldShell>
+          <FieldShell label="Department" required>
+            <ReadOnlyField value={formUser.department} placeholder="Employee department" />
+          </FieldShell>
+        </div>
+      </section>
+
+      <section className="mt-5 rounded-lg border border-slate-200 p-4">
+        <h3 className="mb-4 text-lg font-extrabold text-black">Leave Information</h3>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+          <FieldShell label="Leave Request No." required>
+            <ReadOnlyField value={nextLeaveRequestNo} placeholder="System-generated request number" />
+          </FieldShell>
+          <FieldShell label="Leave Type" required>
+            <SelectField
+              value={form.leave_type}
+              onChange={(value) => updateForm({ leave_type: value })}
+              placeholder="Leave Type"
+              options={leaveTypes}
+              required
+            />
+          </FieldShell>
+          <FieldShell label="Start Date" required>
+            <DateField
+              value={form.start_date}
+              onChange={(value) => updateForm({ start_date: value })}
+              required
+            />
+          </FieldShell>
+          <FieldShell label="End Date" required>
+            <DateField
+              value={form.end_date}
+              onChange={(value) =>
+                updateForm({
+                  end_date: value,
+                  return_date: form.return_date || nextDate(value),
+                })
+              }
+              required
+            />
+          </FieldShell>
+          <FieldShell label="Total Days" required>
+            <ReadOnlyField value={leaveTotalDays || ""} placeholder="Calculated leave days" />
+          </FieldShell>
+          <FieldShell label="Half Day">
+            <label className="flex h-14 items-center justify-between rounded-xl border border-slate-300 bg-[#f8f8f8] px-5 text-base font-medium text-slate-900">
+              <span>{form.half_day ? "Yes" : "No"}</span>
+              <input
+                type="checkbox"
+                checked={form.half_day}
+                onChange={(event) => updateForm({ half_day: event.target.checked })}
+                className="h-5 w-5 accent-emerald-800"
+              />
+            </label>
+          </FieldShell>
+          <FieldShell label="Start Shift" required>
+            <SelectField
+              value={form.start_shift}
+              onChange={(value) => updateForm({ start_shift: value })}
+              placeholder="Select a Shift"
+              options={shiftOptions}
+              required
+            />
+          </FieldShell>
+          <FieldShell label="End Shift" required>
+            <SelectField
+              value={form.end_shift}
+              onChange={(value) => updateForm({ end_shift: value })}
+              placeholder="Select a Shift"
+              options={shiftOptions}
+              required
+            />
+          </FieldShell>
+          <FieldShell label="Reason" required className="col-span-2">
+            <textarea
+              className={textAreaClass}
+              placeholder="Leave reason"
+              value={form.reason}
+              onChange={(event) => updateForm({ reason: event.target.value })}
+              required
+            />
+          </FieldShell>
+        </div>
+      </section>
+
+      <section className="mt-5 rounded-lg border border-slate-200 p-4">
+        <h3 className="mb-4 text-lg font-extrabold text-black">Leave Balance</h3>
+        <div className="grid gap-4 md:grid-cols-3">
+          <FieldShell label="Leave Entitlement">
+            <ReadOnlyField value={`${formLeaveBalance.entitlement} days`} placeholder="Annual entitlement" />
+          </FieldShell>
+          <FieldShell label="Leave Taken">
+            <ReadOnlyField value={`${formLeaveBalance.taken} days`} placeholder="Used leave days" />
+          </FieldShell>
+          <FieldShell label="Remaining Balance">
+            <ReadOnlyField value={`${formLeaveBalance.remaining} days`} placeholder="Available leave balance" />
+          </FieldShell>
+        </div>
+      </section>
+
+      <section className="mt-5 rounded-lg border border-slate-200 p-4">
+        <h3 className="mb-4 text-lg font-extrabold text-black">Attachment</h3>
+        <AttachmentField
+          attachment={attachment}
+          onChange={setAttachment}
+          label="Supporting Document"
+        />
+      </section>
+
+      <section className="mt-5 rounded-lg border border-slate-200 p-4">
+        <h3 className="mb-4 text-lg font-extrabold text-black">Approval</h3>
+        <div className="grid gap-4 md:grid-cols-3">
+          <FieldShell label="Line Manager Approval">
+            <ReadOnlyField value="Pending" placeholder="Pending, Approved, Rejected" />
+          </FieldShell>
+          <FieldShell label="HR Approval">
+            <ReadOnlyField value="Pending" placeholder="Pending, Approved, Rejected" />
+          </FieldShell>
+          <FieldShell label="Final Status">
+            <ReadOnlyField value="Pending" placeholder="Pending, Approved, Rejected, Cancelled" />
+          </FieldShell>
+        </div>
+      </section>
+
+      <section className="mt-5 rounded-lg border border-slate-200 p-4">
+        <h3 className="mb-4 text-lg font-extrabold text-black">Remarks</h3>
+        <FieldShell label="Remarks">
+          <textarea
+            className={textAreaClass}
+            placeholder="Additional comments"
+            value={form.remarks}
+            onChange={(event) => updateForm({ remarks: event.target.value })}
           />
         </FieldShell>
-        <FieldShell label="Start Shift" required>
-          <SelectField
-            value={form.start_shift}
-            onChange={(value) => updateForm({ start_shift: value })}
-            placeholder="Select a Shift"
-            options={shiftOptions}
-            required
-          />
-        </FieldShell>
-        <FieldShell label="End Date" required>
-          <DateField
-            value={form.end_date}
-            onChange={(value) =>
-              updateForm({
-                end_date: value,
-                return_date: form.return_date || nextDate(value),
-              })
-            }
-            required
-          />
-        </FieldShell>
-        <FieldShell label="End Shift" required>
-          <SelectField
-            value={form.end_shift}
-            onChange={(value) => updateForm({ end_shift: value })}
-            placeholder="Select a Shift"
-            options={shiftOptions}
-            required
-          />
-        </FieldShell>
-        <FieldShell label="Days" required>
-          <input className={inputClass} value={days} readOnly />
-        </FieldShell>
-        <FieldShell label="Return Date" required>
-          <DateField
-            value={form.return_date}
-            onChange={(value) => updateForm({ return_date: value })}
-            required
-          />
-        </FieldShell>
-        <FieldShell label="Leave Type" required>
-          <SelectField
-            value={form.leave_type}
-            onChange={(value) => updateForm({ leave_type: value })}
-            placeholder="Leave Type"
-            options={leaveTypes}
-            required
-          />
-        </FieldShell>
-        <AttachmentField attachment={attachment} onChange={setAttachment} />
-      </div>
+      </section>
+
       <BackupUserField
         backupOptions={backupOptions}
         backupSearch={backupSearch}
@@ -1124,15 +1275,6 @@ const RequestsPage = () => {
         selectedBackupId={form.backup_user_id}
         setSelectedBackupId={(value) => updateForm({ backup_user_id: value })}
       />
-      <FieldShell label="Reason" required className="mt-4">
-        <textarea
-          className={textAreaClass}
-          placeholder="Reason..."
-          value={form.reason}
-          onChange={(event) => updateForm({ reason: event.target.value })}
-          required
-        />
-      </FieldShell>
     </>
   );
 
@@ -1485,6 +1627,13 @@ const RequestsPage = () => {
     const totalMonth = Math.max(managementStats.selectedMonthRequests.length, 1);
     const withoutOt = (rows) => requestType === "leave" ? rows.filter((r) => r.request.type !== "ot") : rows;
     const rowsForTab = (tab) => {
+      const leaveRows = managementRows.filter((row) => row.request.type === "leave");
+      if (tab === "Request History") return leaveRows;
+      if (tab === "Pending Requests") return leaveRows.filter((row) => row.request.status === "pending");
+      if (tab === "Approved Requests" || tab === "Leave Taken") return leaveRows.filter((row) => row.request.status === "approved");
+      if (tab === "Rejected Requests") return leaveRows.filter((row) => row.request.status === "rejected");
+      if (tab.includes("Calendar")) return leaveRows.filter((row) => row.request.status === "approved");
+      if (tab.includes("Report") || tab === "Entitlement" || tab === "Remaining Balance") return leaveRows;
       if (tab === "All Requests") return withoutOt(managementRows);
       if (tab === "My Team Requests") return withoutOt(managementRows.filter((row) => row.request.status === "pending"));
       if (requestType === "ot") return managementRows.filter((row) => row.request.type === "ot");
@@ -1493,9 +1642,35 @@ const RequestsPage = () => {
       return withoutOt(managementRows);
     };
 
-    const dashboardTabs = requestType === "ot"
-      ? requestDashboardTabs.filter((tab) => tab === "Dashboard" || tab === "Overtime" || tab === "Reports")
-      : requestDashboardTabs.filter((tab) => tab !== "Overtime" && tab !== "My Team Requests");
+    const dashboardTabs = requestType === "ot" ? otDashboardTabs : suggestedLeaveTabs.flatMap((group) => group.items);
+
+    const openLeaveRequestForm = () => {
+      setLeaveTab("New Leave Request");
+      selectRequestType("leave");
+    };
+
+    const renderManagementTable = (tab, title = tab) => (
+      <LeaveRequestsTable
+        rows={rowsForTab(tab)}
+        search={leaveSearch}
+        setSearch={setLeaveSearch}
+        onOpen={openRequest}
+        onUpdate={updateRequest}
+        onMarkPaid={markAsPaid}
+        title={title}
+        recentlyUpdatedId={recentlyUpdatedId}
+        actionLoadingId={actionLoadingId}
+        actorRole={role}
+        currentUserId={currentUser?.id}
+        approvalFlow={approvalFlow}
+        deptFilter={deptFilter}
+        setDeptFilter={setDeptFilter}
+        departmentOptions={departmentOptions}
+        unitFilter={unitFilter}
+        setUnitFilter={setUnitFilter}
+        unitOptions={unitOptions}
+      />
+    );
 
     return (
       <>
@@ -1585,7 +1760,7 @@ const RequestsPage = () => {
 
           {!showForm && (
             <>
-              {requestType === "ot" ? (
+              {requestType === "ot" && (
                 <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
                   <LeaveStatCard label="Total OT Hours" value={`${managementStats.totalOtHours}h`} helper="All overtime hours" icon={FiClock} tone="bg-violet-600 text-white" />
                   <LeaveStatCard label="Pending OT Requests" value={managementStats.pendingOtCount} helper="Awaiting approval" icon={FiClock} tone="bg-amber-500 text-white" />
@@ -1594,22 +1769,43 @@ const RequestsPage = () => {
                   <LeaveStatCard label="Paid OT" value={`${managementStats.paidOtHours}h`} helper={`${managementStats.paidOtCount} requests`} icon={FiCheckCircle} tone="bg-blue-600 text-white" />
                   <LeaveStatCard label="OT Cost Summary" value={`$${managementStats.otCostSummary}`} helper="Estimated approved cost" icon={FiUsers} tone="bg-teal-600 text-white" />
                 </div>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                  <LeaveStatCard label="Total Requests" value={managementStats.selectedMonthRequests.length} helper={monthLabel(leaveMonth)} icon={FiCalendar} tone="bg-violet-600 text-white" />
-                  <LeaveStatCard label="Pending Requests" value={managementStats.pending} helper="Awaiting current approver" icon={FiClock} tone="bg-emerald-600 text-white" />
-                  <LeaveStatCard label="Approved This Month" value={managementStats.approved} helper="All request types" icon={FiBarChart2} tone="bg-orange-500 text-white" />
-                  <LeaveStatCard label="Rejected This Month" value={managementStats.rejected} helper="All request types" icon={FiXCircle} tone="bg-rose-500 text-white" />
-                </div>
               )}
 
-              <div className="flex gap-8 overflow-x-auto border-b border-slate-200 bg-white px-4">
-                {dashboardTabs.map((tab) => (
-                  <button key={tab} type="button" onClick={() => setLeaveTab(tab)} className={`h-12 border-b-2 px-1 text-sm font-extrabold ${leaveTab === tab ? "border-[#5b21e8] text-[#5b21e8]" : "border-transparent text-slate-700 hover:text-[#5b21e8]"}`}>
-                    {tab}
-                  </button>
-                ))}
-              </div>
+              {requestType === "ot" ? (
+                <div className="flex gap-8 overflow-x-auto border-b border-slate-200 bg-white px-4">
+                  {dashboardTabs.map((tab) => (
+                    <button key={tab} type="button" onClick={() => setLeaveTab(tab)} className={`h-12 border-b-2 px-1 text-sm font-extrabold ${leaveTab === tab ? "border-[#5b21e8] text-[#5b21e8]" : "border-transparent text-slate-700 hover:text-[#5b21e8]"}`}>
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="overflow-x-auto border border-slate-200 bg-white p-3 shadow-sm">
+                  <div className="flex min-w-max gap-3">
+                    {suggestedLeaveTabs.map((group) => (
+                      <div key={group.group} className="min-w-[220px] border-r border-slate-100 pr-3 last:border-r-0">
+                        <p className="px-2 pb-2 text-[11px] font-extrabold uppercase tracking-wide text-slate-400">{group.group}</p>
+                        <div className="grid gap-1">
+                          {group.items.map((tab) => (
+                            <button
+                              key={tab}
+                              type="button"
+                              onClick={tab === "New Leave Request" ? openLeaveRequestForm : () => setLeaveTab(tab)}
+                              className={`h-10 rounded-md px-3 text-left text-sm font-extrabold ${
+                                leaveTab === tab
+                                  ? "bg-[#5b21e8] text-white"
+                                  : "text-slate-700 hover:bg-slate-50 hover:text-[#5b21e8]"
+                              }`}
+                            >
+                              {tab}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {leaveTab === "Dashboard" && (
                 requestType === "ot" ? (
@@ -1785,27 +1981,34 @@ const RequestsPage = () => {
                 />
               )}
 
-              {leaveTab !== "Dashboard" && leaveTab !== "Settings" && (
-                <LeaveRequestsTable
-                  rows={rowsForTab(leaveTab)}
-                  search={leaveSearch}
-                  setSearch={setLeaveSearch}
-                  onOpen={openRequest}
-                  onUpdate={updateRequest}
-                  onMarkPaid={markAsPaid}
-                  title={leaveTab}
-                  recentlyUpdatedId={recentlyUpdatedId}
-                  actionLoadingId={actionLoadingId}
-                  actorRole={role}
-                  currentUserId={currentUser?.id}
-                  approvalFlow={approvalFlow}
-                  deptFilter={deptFilter}
-                  setDeptFilter={setDeptFilter}
-                  departmentOptions={departmentOptions}
-                  unitFilter={unitFilter}
-                  setUnitFilter={setUnitFilter}
-                  unitOptions={unitOptions}
+              {(leaveTab === "Entitlement" || leaveTab === "Remaining Balance") && (
+                <LeaveBalancePanel
+                  balanceData={managementStats.balanceData}
+                  mode={leaveTab}
+                  totalBalance={managementStats.totalBalance}
+                  usersCount={users.length}
                 />
+              )}
+
+              {leaveTab.includes("Calendar") && (
+                <LeaveCalendarPanel
+                  rows={rowsForTab(leaveTab)}
+                  scope={leaveTab}
+                  month={leaveMonth}
+                />
+              )}
+
+              {leaveTab.includes("Report") && (
+                <LeaveReportPanel
+                  rows={rowsForTab(leaveTab)}
+                  tab={leaveTab}
+                  stats={managementStats}
+                  onExport={exportCsv}
+                />
+              )}
+
+              {(["Request History", "Pending Requests", "Approved Requests", "Rejected Requests", "Leave Taken"].includes(leaveTab) || (requestType === "ot" && leaveTab !== "Dashboard" && leaveTab !== "Settings")) && (
+                renderManagementTable(leaveTab)
               )}
 
             </>
@@ -2061,6 +2264,154 @@ const ApprovalFlowSettings = ({ flow, onToggleStage, onMoveStage, onSave, saving
           );
         })}
       </div>
+    </section>
+  );
+};
+
+const LeaveBalancePanel = ({ balanceData, mode, totalBalance, usersCount }) => {
+  const entitlementRows = [
+    ["Annual Leave", usersCount * ANNUAL_LEAVE, leaveTypeColors.annual],
+    ["Sick Leave", usersCount * SICK_LEAVE, leaveTypeColors.sick],
+    ["Special Leave", usersCount * SPECIAL_LEAVE, leaveTypeColors.special],
+    ["Unpaid Leave", usersCount * UNPAID_LEAVE, leaveTypeColors.unpaid],
+  ];
+  const rows = mode === "Entitlement"
+    ? entitlementRows.map(([name, value, color]) => ({ name, value, color }))
+    : balanceData;
+  const totalValue = rows.reduce((sum, item) => sum + item.value, 0);
+
+  return (
+    <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-extrabold text-[#11164a]">{mode}</h2>
+          <span className="rounded-md bg-slate-100 px-3 py-1.5 text-xs font-extrabold text-slate-600">
+            {usersCount} employees
+          </span>
+        </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
+          {rows.map((item) => (
+            <div key={item.name} className="rounded-lg border border-slate-200 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
+                  <p className="text-sm font-extrabold text-[#11164a]">{item.name}</p>
+                </div>
+                <p className="text-xl font-extrabold text-[#11164a]">{item.value}</p>
+              </div>
+              <p className="mt-2 text-xs font-semibold text-slate-500">
+                {mode === "Entitlement" ? "Total entitlement days" : "Remaining available days"}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-extrabold text-[#11164a]">Balance Mix</h2>
+        <div className="mt-4 h-[240px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={rows} innerRadius={60} outerRadius={96} dataKey="value" paddingAngle={2}>
+                {rows.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        <p className="text-center text-sm font-bold text-slate-500">
+          {mode === "Entitlement" ? "Total entitlement" : "Total remaining balance"}: {mode === "Entitlement" ? totalValue : totalBalance}
+        </p>
+      </div>
+    </section>
+  );
+};
+
+const LeaveCalendarPanel = ({ rows, scope, month }) => {
+  const monthRows = rows
+    .filter((row) => monthKey(row.request.date) === month)
+    .sort((a, b) => String(a.request.date).localeCompare(String(b.request.date)));
+
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-col gap-2 border-b border-slate-100 p-5 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-lg font-extrabold text-[#11164a]">{scope}</h2>
+          <p className="mt-1 text-sm font-semibold text-slate-500">{monthLabel(month)}</p>
+        </div>
+        <span className="rounded-md bg-blue-50 px-3 py-1.5 text-sm font-extrabold text-blue-700">
+          {monthRows.length} approved leave records
+        </span>
+      </div>
+      <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-3">
+        {monthRows.map((row) => (
+          <article key={row.request.id} className="rounded-lg border border-slate-200 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-extrabold text-[#11164a]">{row.user?.name || `Employee #${row.request.user_id}`}</p>
+                <p className="mt-1 text-xs font-bold text-slate-500">{row.user?.department || "Unassigned"} / {row.user?.sub_department || "-"}</p>
+              </div>
+              <span className={`rounded-md px-2.5 py-1 text-xs font-extrabold ${leaveTypeTone(row.request.leave_type)}`}>
+                {formatLeaveType(row.request.leave_type || "annual")}
+              </span>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="text-xs font-bold text-slate-400">Leave Date</p>
+                <p className="mt-1 font-extrabold text-[#11164a]">{row.range}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-400">Duration</p>
+                <p className="mt-1 font-extrabold text-[#11164a]">{row.unit}</p>
+              </div>
+            </div>
+          </article>
+        ))}
+        {monthRows.length === 0 && (
+          <div className="col-span-full rounded-lg border border-dashed border-slate-200 py-12 text-center text-sm font-bold text-slate-400">
+            No approved leave in this calendar scope.
+          </div>
+        )}
+      </div>
+    </section>
+  );
+};
+
+const LeaveReportPanel = ({ rows, tab, stats, onExport }) => {
+  const approvedRows = rows.filter((row) => row.request.status === "approved");
+  const totalTaken = approvedRows.reduce((sum, row) => sum + getRequestDays(row.request), 0);
+  const utilization = Math.round((totalTaken / Math.max(totalTaken + stats.totalBalance, 1)) * 100);
+
+  return (
+    <section className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-3">
+        <LeaveStatCard label="Approved Leave Days" value={totalTaken} helper="Selected filters" icon={FiCheckCircle} tone="bg-emerald-600 text-white" />
+        <LeaveStatCard label="Remaining Balance" value={stats.totalBalance} helper="Across all employees" icon={FiCalendar} tone="bg-blue-600 text-white" />
+        <LeaveStatCard label="Utilization" value={`${utilization}%`} helper="Approved days vs available pool" icon={FiBarChart2} tone="bg-orange-500 text-white" />
+      </div>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <h2 className="text-lg font-extrabold text-[#11164a]">{tab}</h2>
+          <button type="button" onClick={onExport} className="inline-flex h-10 items-center gap-2 rounded-md bg-[#5b21e8] px-4 text-sm font-extrabold text-white">
+            <FiDownload className="h-4 w-4" aria-hidden />
+            Export CSV
+          </button>
+        </div>
+        <div className="mt-5 h-[260px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={stats.trend} margin={{ left: -12, right: 12, top: 8, bottom: 0 }}>
+              <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" />
+              <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#11164a", fontWeight: 700 }} />
+              <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontWeight: 700 }} />
+              <Tooltip />
+              <Line type="monotone" dataKey="Approved" stroke="#22c55e" strokeWidth={3} dot={{ r: 4 }} />
+              <Line type="monotone" dataKey="Pending" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} />
+              <Line type="monotone" dataKey="Rejected" stroke="#f43f5e" strokeWidth={3} dot={{ r: 4 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
     </section>
   );
 };

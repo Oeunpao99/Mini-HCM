@@ -80,7 +80,11 @@ const RequestDetail = ({ request, onCancel, user, entitlement, taken, remaining 
   const days = getRequestDays(request);
   const endDate = getReasonValue(request.reason, "End date");
   const duration = getReasonValue(request.reason, "Duration");
-  const isHalfDay = duration?.toLowerCase() === "half_day";
+  const halfDayValue = getReasonValue(request.reason, "Half day");
+  const requesterRemarks = getReasonValue(request.reason, "Remarks");
+  const isHalfDay = halfDayValue
+    ? halfDayValue.toLowerCase() === "yes"
+    : duration?.toLowerCase() === "half_day";
   const metaLines = getMetaData(request.reason);
   const primaryReason = getPrimaryReason(request.reason);
 
@@ -159,7 +163,7 @@ const RequestDetail = ({ request, onCancel, user, entitlement, taken, remaining 
               <div className="grid grid-cols-2 gap-2 rounded-lg bg-slate-50 p-3">
                 {metaLines.filter((l) => {
                   const key = l.split(":")[0].trim().toLowerCase();
-                  return !["end date", "return date", "days", "duration", "half day", "start shift", "end shift"].includes(key);
+                  return !["end date", "return date", "days", "duration", "half day", "remarks", "start shift", "end shift"].includes(key);
                 }).map((line) => {
                   const [key, ...rest] = line.split(":");
                   return (
@@ -204,7 +208,7 @@ const RequestDetail = ({ request, onCancel, user, entitlement, taken, remaining 
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <SectionTitle>Remarks</SectionTitle>
         <p className="mt-3 whitespace-pre-line text-sm font-extrabold text-slate-950">
-          {request.admin_remarks || "No remarks"}
+          {request.admin_remarks || requesterRemarks || "No remarks"}
         </p>
       </div>
 

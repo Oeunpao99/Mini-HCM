@@ -11,3 +11,4 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     role: str
     name: str
+    department: str | None = None

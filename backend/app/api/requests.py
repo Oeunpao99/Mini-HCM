@@ -210,6 +210,7 @@ async def create_request(
         payload["leave_type"] = form.get("leave_type") or None
         payload["backup_user_id"] = form.get("backup_user_id") or None
         payload["reason"] = form.get("reason") or None
+        payload["admin_remarks"] = form.get("admin_remarks") or None
         attachment = form.get("attachment")
     else:
         payload = await request.json()
@@ -255,6 +256,7 @@ async def create_request(
         department_head_status=stage_statuses["department_head_status"],
         hr_status=stage_statuses["hr_status"],
         reason=payload.get("reason"),
+        admin_remarks=payload.get("admin_remarks"),
         status="pending",
     )
     _sync_final_status(req)
