@@ -12,6 +12,7 @@ import PayslipPage from "./pages/PayslipPage";
 import ProfilePage from "./pages/ProfilePage";
 import ReportPage from "./pages/ReportPage";
 import RequestsPage from "./pages/RequestsPage";
+import SelfServicePage from "./pages/SelfServicePage";
 import ShiftPage from "./pages/ShiftPage";
 import SwapPage from "./pages/SwapPage";
 
@@ -96,6 +97,17 @@ const App = () => {
           <ProtectedRoute>
             <Layout>
               <SwapPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/self-service"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <SelfServicePage />
             </Layout>
           </ProtectedRoute>
         }

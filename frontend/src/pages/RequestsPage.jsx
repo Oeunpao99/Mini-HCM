@@ -43,11 +43,13 @@ import { useAuth } from "../context/AuthContext";
 const leaveTypes = [
   ["annual", "Annual Leave"],
   ["sick", "Sick Leave"],
-  ["special", "Special Leave"],
   ["maternity", "Maternity Leave"],
-  ["bereavement", "Bereavement Leave"],
-  ["compensatory", "Compensatory Leave"],
+  ["paternity", "Paternity Leave"],
+  ["marriage", "Marriage Leave"],
+  ["compassionate", "Compassionate Leave"],
   ["unpaid", "Unpaid Leave"],
+  ["special", "Special Leave"],
+  ["business", "Business Leave"],
 ];
 
 const shiftOptions = [
@@ -81,14 +83,24 @@ const requestTypeDefinitions = [
 
 const ANNUAL_LEAVE = 18;
 const SICK_LEAVE = 6;
-const SPECIAL_LEAVE = 6;
+const MATERNITY_LEAVE = 90;
+const PATERNITY_LEAVE = 14;
+const MARRIAGE_LEAVE = 3;
+const COMPASSIONATE_LEAVE = 3;
 const UNPAID_LEAVE = 5;
+const SPECIAL_LEAVE = 6;
+const BUSINESS_LEAVE = 5;
 const managementRoles = ["line_manager", "department_head", "management_hr", "payroll_officer"];
 const leaveTypeColors = {
   annual: "#1f7aff",
   sick: "#22c55e",
+  maternity: "#ec4899",
+  paternity: "#8b5cf6",
+  marriage: "#f43f5e",
+  compassionate: "#f59e0b",
+  unpaid: "#64748b",
   special: "#f59e0b",
-  unpaid: "#8b5cf6",
+  business: "#0ea5e9",
 };
 const suggestedLeaveTabs = [
   {
@@ -249,8 +261,13 @@ const requestUnitValue = (request) => {
 const leaveTypeTone = (type) => {
   const value = String(type || "").toLowerCase();
   if (value.includes("sick")) return "bg-emerald-100 text-emerald-700";
+  if (value.includes("maternity")) return "bg-pink-100 text-pink-700";
+  if (value.includes("paternity")) return "bg-violet-100 text-violet-700";
+  if (value.includes("marriage")) return "bg-rose-100 text-rose-700";
+  if (value.includes("compassionate")) return "bg-amber-100 text-amber-700";
+  if (value.includes("unpaid")) return "bg-slate-100 text-slate-700";
   if (value.includes("special")) return "bg-orange-100 text-orange-700";
-  if (value.includes("unpaid")) return "bg-violet-100 text-violet-700";
+  if (value.includes("business")) return "bg-sky-100 text-sky-700";
   return "bg-blue-100 text-blue-700";
 };
 
@@ -585,31 +602,31 @@ const RequestsPage = () => {
         String(request.date || "").startsWith(currentYear),
     );
 
-    return approvedLeaves.reduce(
-      (summary, request) => {
-        const days = getRequestDays(request);
-        const isSick = String(
-          `${request.leave_type || ""} ${request.reason || ""}`,
-        )
-          .toLowerCase()
-          .includes("sick");
-        const usedAnnual = isSick ? summary.usedAnnual : summary.usedAnnual + days;
-        const usedSick = isSick ? summary.usedSick + days : summary.usedSick;
+    const typeMap = {
+      annual: { used: 0, total: ANNUAL_LEAVE },
+      sick: { used: 0, total: SICK_LEAVE },
+      maternity: { used: 0, total: MATERNITY_LEAVE },
+      paternity: { used: 0, total: PATERNITY_LEAVE },
+      marriage: { used: 0, total: MARRIAGE_LEAVE },
+      compassionate: { used: 0, total: COMPASSIONATE_LEAVE },
+      unpaid: { used: 0, total: UNPAID_LEAVE },
+      special: { used: 0, total: SPECIAL_LEAVE },
+      business: { used: 0, total: BUSINESS_LEAVE },
+    };
 
-        return {
-          usedAnnual,
-          usedSick,
-          remainingAnnual: Math.max(0, ANNUAL_LEAVE - usedAnnual).toFixed(2),
-          remainingSick: Math.max(0, SICK_LEAVE - usedSick).toFixed(2),
-        };
-      },
-      {
-        usedAnnual: 0,
-        usedSick: 0,
-        remainingAnnual: ANNUAL_LEAVE.toFixed(2),
-        remainingSick: SICK_LEAVE.toFixed(2),
-      },
-    );
+    approvedLeaves.forEach((request) => {
+      const lt = String(request.leave_type || "annual").toLowerCase();
+      const days = getRequestDays(request);
+      if (typeMap[lt]) typeMap[lt].used += days;
+    });
+
+    const summary = {};
+    for (const [key, val] of Object.entries(typeMap)) {
+      summary[`total${key.charAt(0).toUpperCase() + key.slice(1)}`] = val.total;
+      summary[`used${key.charAt(0).toUpperCase() + key.slice(1)}`] = val.used;
+      summary[`remaining${key.charAt(0).toUpperCase() + key.slice(1)}`] = Math.max(0, val.total - val.used).toFixed(2);
+    }
+    return summary;
   }, [items]);
 
   const selectedRequest = useMemo(() => {
@@ -739,21 +756,46 @@ const RequestsPage = () => {
     const usedSick = leaveRequests
       .filter((request) => request.status === "approved" && String(request.leave_type || "").includes("sick"))
       .reduce((sum, request) => sum + getRequestDays(request), 0);
-    const usedSpecial = leaveRequests
-      .filter((request) => request.status === "approved" && String(request.leave_type || "").includes("special"))
+    const usedMaternity = leaveRequests
+      .filter((request) => request.status === "approved" && String(request.leave_type || "").includes("maternity"))
+      .reduce((sum, request) => sum + getRequestDays(request), 0);
+    const usedPaternity = leaveRequests
+      .filter((request) => request.status === "approved" && String(request.leave_type || "").includes("paternity"))
+      .reduce((sum, request) => sum + getRequestDays(request), 0);
+    const usedMarriage = leaveRequests
+      .filter((request) => request.status === "approved" && String(request.leave_type || "").includes("marriage"))
+      .reduce((sum, request) => sum + getRequestDays(request), 0);
+    const usedCompassionate = leaveRequests
+      .filter((request) => request.status === "approved" && String(request.leave_type || "").includes("compassionate"))
       .reduce((sum, request) => sum + getRequestDays(request), 0);
     const usedUnpaid = leaveRequests
       .filter((request) => request.status === "approved" && String(request.leave_type || "").includes("unpaid"))
       .reduce((sum, request) => sum + getRequestDays(request), 0);
+    const usedSpecial = leaveRequests
+      .filter((request) => request.status === "approved" && String(request.leave_type || "").includes("special"))
+      .reduce((sum, request) => sum + getRequestDays(request), 0);
+    const usedBusiness = leaveRequests
+      .filter((request) => request.status === "approved" && String(request.leave_type || "").includes("business"))
+      .reduce((sum, request) => sum + getRequestDays(request), 0);
     const totalAnnual = Math.max(users.length, 1) * ANNUAL_LEAVE;
     const totalSick = Math.max(users.length, 1) * SICK_LEAVE;
-    const totalSpecial = Math.max(users.length, 1) * SPECIAL_LEAVE;
+    const totalMaternity = Math.max(users.length, 1) * MATERNITY_LEAVE;
+    const totalPaternity = Math.max(users.length, 1) * PATERNITY_LEAVE;
+    const totalMarriage = Math.max(users.length, 1) * MARRIAGE_LEAVE;
+    const totalCompassionate = Math.max(users.length, 1) * COMPASSIONATE_LEAVE;
     const totalUnpaid = Math.max(users.length, 1) * UNPAID_LEAVE;
+    const totalSpecial = Math.max(users.length, 1) * SPECIAL_LEAVE;
+    const totalBusiness = Math.max(users.length, 1) * BUSINESS_LEAVE;
     const balanceData = [
       { name: "Annual Leave", value: Math.max(0, totalAnnual - usedAnnual), color: leaveTypeColors.annual },
       { name: "Sick Leave", value: Math.max(0, totalSick - usedSick), color: leaveTypeColors.sick },
-      { name: "Special Leave", value: Math.max(0, totalSpecial - usedSpecial), color: leaveTypeColors.special },
+      { name: "Maternity Leave", value: Math.max(0, totalMaternity - usedMaternity), color: leaveTypeColors.maternity },
+      { name: "Paternity Leave", value: Math.max(0, totalPaternity - usedPaternity), color: leaveTypeColors.paternity },
+      { name: "Marriage Leave", value: Math.max(0, totalMarriage - usedMarriage), color: leaveTypeColors.marriage },
+      { name: "Compassionate Leave", value: Math.max(0, totalCompassionate - usedCompassionate), color: leaveTypeColors.compassionate },
       { name: "Unpaid Leave", value: Math.max(0, totalUnpaid - usedUnpaid), color: leaveTypeColors.unpaid },
+      { name: "Special Leave", value: Math.max(0, totalSpecial - usedSpecial), color: leaveTypeColors.special },
+      { name: "Business Leave", value: Math.max(0, totalBusiness - usedBusiness), color: leaveTypeColors.business },
     ];
     const trend = Array.from({ length: 6 }, (_, index) => {
       const date = new Date(year, month - 6 + index, 1);
@@ -1241,20 +1283,13 @@ const RequestsPage = () => {
         />
       </section>
 
-      <section className="mt-5 rounded-lg border border-slate-200 p-4">
-        <h3 className="mb-4 text-lg font-extrabold text-black">Approval</h3>
-        <div className="grid gap-4 md:grid-cols-3">
-          <FieldShell label="Line Manager Approval">
-            <ReadOnlyField value="Pending" placeholder="Pending, Approved, Rejected" />
-          </FieldShell>
-          <FieldShell label="HR Approval">
-            <ReadOnlyField value="Pending" placeholder="Pending, Approved, Rejected" />
-          </FieldShell>
-          <FieldShell label="Final Status">
-            <ReadOnlyField value="Pending" placeholder="Pending, Approved, Rejected, Cancelled" />
-          </FieldShell>
-        </div>
-      </section>
+      <BackupUserField
+        backupOptions={backupOptions}
+        backupSearch={backupSearch}
+        setBackupSearch={setBackupSearch}
+        selectedBackupId={form.backup_user_id}
+        setSelectedBackupId={(value) => updateForm({ backup_user_id: value })}
+      />
 
       <section className="mt-5 rounded-lg border border-slate-200 p-4">
         <h3 className="mb-4 text-lg font-extrabold text-black">Remarks</h3>
@@ -1267,14 +1302,6 @@ const RequestsPage = () => {
           />
         </FieldShell>
       </section>
-
-      <BackupUserField
-        backupOptions={backupOptions}
-        backupSearch={backupSearch}
-        setBackupSearch={setBackupSearch}
-        selectedBackupId={form.backup_user_id}
-        setSelectedBackupId={(value) => updateForm({ backup_user_id: value })}
-      />
     </>
   );
 
@@ -2272,8 +2299,13 @@ const LeaveBalancePanel = ({ balanceData, mode, totalBalance, usersCount }) => {
   const entitlementRows = [
     ["Annual Leave", usersCount * ANNUAL_LEAVE, leaveTypeColors.annual],
     ["Sick Leave", usersCount * SICK_LEAVE, leaveTypeColors.sick],
-    ["Special Leave", usersCount * SPECIAL_LEAVE, leaveTypeColors.special],
+    ["Maternity Leave", usersCount * MATERNITY_LEAVE, leaveTypeColors.maternity],
+    ["Paternity Leave", usersCount * PATERNITY_LEAVE, leaveTypeColors.paternity],
+    ["Marriage Leave", usersCount * MARRIAGE_LEAVE, leaveTypeColors.marriage],
+    ["Compassionate Leave", usersCount * COMPASSIONATE_LEAVE, leaveTypeColors.compassionate],
     ["Unpaid Leave", usersCount * UNPAID_LEAVE, leaveTypeColors.unpaid],
+    ["Special Leave", usersCount * SPECIAL_LEAVE, leaveTypeColors.special],
+    ["Business Leave", usersCount * BUSINESS_LEAVE, leaveTypeColors.business],
   ];
   const rows = mode === "Entitlement"
     ? entitlementRows.map(([name, value, color]) => ({ name, value, color }))

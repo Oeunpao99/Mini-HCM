@@ -143,7 +143,7 @@ const MetricCard = ({ label, value, helper, icon: Icon, tone }) => (
       </span>
       <div className="min-w-0">
         <p className="truncate text-sm font-extrabold text-[#111b4f]">{label}</p>
-        <p className="mt-2 text-3xl font-extrabold leading-none text-[#071a33]">
+        <p className="mt-2 text-3xl font-extrabold leading-none text-[#166432]">
           {value}
         </p>
         {helper && (
@@ -675,7 +675,7 @@ export default function ProfilePage() {
                       {formatLabel(employee.status)}
                     </span>
                   )}
-                  <h1 className="font-display text-3xl font-extrabold text-[#071a33] md:text-4xl">
+                  <h1 className="font-display text-3xl font-extrabold text-[#166432] md:text-4xl">
                     {displayName}
                   </h1>
                   <span className="grid h-6 w-6 place-items-center rounded-full bg-blue-600 text-white">
@@ -707,7 +707,7 @@ export default function ProfilePage() {
               <button
                 type="button"
                 onClick={logout}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#071a33] px-4 text-sm font-extrabold text-white shadow-sm hover:bg-[#0d274a]"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#166432] px-4 text-sm font-extrabold text-white shadow-sm hover:bg-[#0d274a]"
               >
                 <FiLogOut className="h-4 w-4" aria-hidden />
                 Logout

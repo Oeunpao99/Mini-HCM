@@ -1,13 +1,22 @@
 import RequestCard from "./RequestCard";
 
-const ANNUAL_LEAVE = 18;
-const SICK_LEAVE = 6;
-
 const statusTabs = [
   ["all", "All"],
   ["approved", "Approved"],
   ["pending", "Requesting"],
   ["rejected", "Rejected"],
+];
+
+const leaveTypeLabels = [
+  ["annual", "Annual"],
+  ["sick", "Sick"],
+  ["maternity", "Maternity"],
+  ["paternity", "Paternity"],
+  ["marriage", "Marriage"],
+  ["compassionate", "Compassionate"],
+  ["unpaid", "Unpaid"],
+  ["special", "Special"],
+  ["business", "Business"],
 ];
 
 const LeaveMetric = ({ label, value }) => (
@@ -19,25 +28,22 @@ const LeaveMetric = ({ label, value }) => (
 
 const LeaveInfo = ({ summary }) => (
   <section className="mb-3 rounded-[10px] border border-slate-200 bg-white px-5 py-5 shadow-[0_8px_22px_rgba(15,23,42,0.03)]">
-    <h2 className="text-lg font-extrabold text-black">Leave info</h2>
-    <div className="mt-3 grid grid-cols-3 gap-3">
+    <h2 className="mb-4 text-lg font-extrabold text-black">Leave info</h2>
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
       <div className="space-y-2">
-        <LeaveMetric label="Allotted Annual Leave" value={ANNUAL_LEAVE} />
-        <LeaveMetric label="Allotted Sick Leave" value={SICK_LEAVE} />
+        {leaveTypeLabels.map(([key, label]) => (
+          <LeaveMetric key={key} label={`Allotted ${label} Leave`} value={summary[`total${key.charAt(0).toUpperCase() + key.slice(1)}`] ?? 18} />
+        ))}
       </div>
       <div className="space-y-2 border-l border-slate-100 pl-3">
-        <LeaveMetric label="Used Annual Leave" value={summary.usedAnnual} />
-        <LeaveMetric label="Used Sick Leave" value={summary.usedSick} />
+        {leaveTypeLabels.map(([key, label]) => (
+          <LeaveMetric key={key} label={`Used ${label} Leave`} value={summary[`used${key.charAt(0).toUpperCase() + key.slice(1)}`] ?? 0} />
+        ))}
       </div>
       <div className="space-y-2 border-l border-slate-100 pl-3">
-        <LeaveMetric
-          label="Remaining Annual Leave"
-          value={summary.remainingAnnual}
-        />
-        <LeaveMetric
-          label="Remaining Sick Leave"
-          value={summary.remainingSick}
-        />
+        {leaveTypeLabels.map(([key, label]) => (
+          <LeaveMetric key={key} label={`Remaining ${label} Leave`} value={summary[`remaining${key.charAt(0).toUpperCase() + key.slice(1)}`] ?? 18} />
+        ))}
       </div>
     </div>
   </section>

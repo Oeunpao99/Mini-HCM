@@ -13,6 +13,7 @@ import {
   FiRefreshCw,
   FiSearch,
   FiSettings,
+  FiUserCheck,
   FiUsers,
 } from "react-icons/fi";
 import { FaHome } from "react-icons/fa";
@@ -41,11 +42,19 @@ const moduleGroups = [
     label: "Attendance & Leave Management",
     icon: <BiSolidTimeFive className="h-5 w-5" aria-hidden />,
     items: [
-      { to: "/my-attendance", label: "My Attendance", icon: <FiClock className="h-4 w-4" aria-hidden /> },
       { to: "/admin", label: "Attendance Management", icon: <BiSolidTimeFive className="h-4 w-4" aria-hidden /> },
       { to: "/requests?type=leave", label: "Leave Management", icon: <FiCalendar className="h-4 w-4" aria-hidden /> },
       { to: "/requests?type=ot", label: "OT Management", icon: <FiClock className="h-4 w-4" aria-hidden /> },
       { to: "/shift", label: "Shift & Schedule Management", icon: <FiRefreshCw className="h-4 w-4" aria-hidden /> },
+    ],
+  },
+  {
+    key: "ess",
+    label: "Employee Self Service",
+    icon: <FiUserCheck className="h-5 w-5" aria-hidden />,
+    items: [
+      { to: "/self-service", label: "ESS Dashboard", icon: <FiUserCheck className="h-4 w-4" aria-hidden /> },
+      { to: "/my-attendance", label: "My Attendance", icon: <FiClock className="h-4 w-4" aria-hidden /> },
     ],
   },
 ];
@@ -69,8 +78,8 @@ const NavLinkItem = ({ to, label, icon }) => {
       to={to}
       className={`flex h-11 items-center gap-3 rounded-lg px-4 text-sm font-bold ${
         active
-          ? "bg-blue-600 text-white shadow-lg shadow-blue-900/30"
-          : "text-white/78 hover:bg-white/10 hover:text-white"
+          ? "bg-[#166432] text-white shadow-lg shadow-[#166432]/30"
+          : "text-slate-500 hover:bg-[#166432]/10 hover:text-[#166432]"
       }`}
     >
       {icon}
@@ -93,8 +102,8 @@ const ModuleGroup = ({ group, isExpanded, onToggle }) => {
         onClick={onToggle}
         className={`flex h-11 w-full items-center gap-3 rounded-lg px-4 text-sm font-bold ${
           anyActive
-            ? "bg-blue-600/20 text-blue-300"
-            : "text-white/78 hover:bg-white/10 hover:text-white"
+            ? "bg-[#166432]/10 text-[#166432]"
+            : "text-slate-500 hover:bg-[#166432]/10 hover:text-[#166432]"
         }`}
       >
         {group.icon}
@@ -104,9 +113,9 @@ const ModuleGroup = ({ group, isExpanded, onToggle }) => {
             className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? "rotate-0" : "-rotate-90"}`}
           />
         )}
-        {!hasItems && (
-          <span className="text-[10px] font-semibold text-white/40">Empty</span>
-        )}
+          {!hasItems && (
+            <span className="text-[10px] font-semibold text-slate-400">Empty</span>
+          )}
       </button>
       {hasItems && (
         <div
@@ -115,7 +124,7 @@ const ModuleGroup = ({ group, isExpanded, onToggle }) => {
           }`}
         >
           <div className="min-h-0">
-            <div className="ml-2 border-l border-white/10 pl-3">
+            <div className="ml-2 border-l border-slate-200 pl-3">
               {group.items.map((item) => (
                 <div key={item.to + item.label} className="mb-1.5 last:mb-0">
                   <NavLinkItem to={item.to} label={item.label} icon={item.icon} />
@@ -166,12 +175,12 @@ const Layout = ({ children }) => {
   if (isManagement) {
     return (
       <div className="min-h-screen bg-[#f5f7fb] text-slate-950">
-        <aside className="fixed inset-y-0 left-0 z-30 hidden w-[300px] bg-[#071a33] text-white shadow-2xl lg:flex lg:flex-col">
+        <aside className="fixed inset-y-0 left-0 z-30 hidden w-[300px] border-r border-slate-200 bg-white shadow-2xl lg:flex lg:flex-col">
           <div className="flex h-20 items-center gap-3 px-6">
             <img src="/logo.svg" alt="Logo" className="h-11 w-11" />
             <div>
-              <p className="text-xl font-extrabold leading-none">HCM App</p>
-              <p className="mt-1 text-xs font-semibold leading-tight text-white/65">
+              <p className="text-xl font-extrabold leading-none text-slate-900">HCM App</p>
+              <p className="mt-1 text-xs font-semibold leading-tight text-slate-400">
                 Human Capital Management
               </p>
             </div>
@@ -184,7 +193,7 @@ const Layout = ({ children }) => {
               </div>
             ))}
 
-            <div className="my-3 border-t border-white/10" />
+            <div className="my-3 border-t border-slate-200" />
 
             {moduleGroups.map((group) => (
               <div key={group.key} className="mb-1.5">
@@ -196,7 +205,7 @@ const Layout = ({ children }) => {
               </div>
             ))}
 
-            <div className="my-3 border-t border-white/10" />
+            <div className="my-3 border-t border-slate-200" />
 
             {standaloneNavItems.map((item) => (
               <div key={item.to} className="mb-1.5">
@@ -204,7 +213,7 @@ const Layout = ({ children }) => {
               </div>
             ))}
 
-            <div className="my-3 border-t border-white/10" />
+            <div className="my-3 border-t border-slate-200" />
 
             {otherNavItems.map((item) => (
               <div key={item.to} className="mb-1.5">
@@ -213,19 +222,19 @@ const Layout = ({ children }) => {
             ))}
           </nav>
 
-          <div className="mt-auto border-t border-white/10 p-4">
-            <div className="flex items-center gap-3 rounded-xl bg-white/8 p-3">
-              <div className="grid h-10 w-10 place-items-center rounded-full bg-white text-sm font-extrabold text-[#071a33]">
+          <div className="mt-auto border-t border-slate-200 p-4">
+            <div className="flex items-center gap-3 rounded-xl bg-[#166432]/5 p-3">
+              <div className="grid h-10 w-10 place-items-center rounded-full bg-[#166432] text-sm font-extrabold text-white">
                 {name?.[0] || "U"}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-extrabold">{name}</p>
-                <p className="truncate text-xs font-semibold text-white/55">{role}</p>
+                <p className="truncate text-sm font-extrabold text-slate-900">{name}</p>
+                <p className="truncate text-xs font-semibold text-slate-400">{role}</p>
               </div>
             </div>
             <button
               onClick={logout}
-              className="mt-3 h-10 w-full rounded-lg bg-white/10 text-sm font-bold text-white hover:bg-white/15"
+              className="mt-3 h-10 w-full rounded-lg bg-slate-100 text-sm font-bold text-slate-600 hover:bg-slate-200"
             >
               Logout
             </button>
@@ -256,7 +265,7 @@ const Layout = ({ children }) => {
                   <p className="text-sm font-extrabold text-slate-950">{name}</p>
                   <p className="text-xs font-semibold text-slate-400">{role}</p>
                 </div>
-                <div className="grid h-10 w-10 place-items-center rounded-full bg-blue-600 text-sm font-extrabold text-white">
+                <div className="grid h-10 w-10 place-items-center rounded-full bg-[#166432] text-sm font-extrabold text-white">
                   {name?.[0] || "U"}
                 </div>
               </div>
@@ -273,7 +282,7 @@ const Layout = ({ children }) => {
       <main className="min-w-0">{children}</main>
 
       <nav
-        className="dashboard-bottom-nav fixed bottom-4 left-1/2 z-20 grid w-[calc(100%-2rem)] max-w-[448px] -translate-x-1/2 rounded-[1.75rem] border border-white/80 bg-white/95 p-3 shadow-[0_24px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl md:max-w-[520px]"
+        className="dashboard-bottom-nav fixed bottom-4 left-1/2 z-20 grid w-[calc(100%-2rem)] max-w-[448px] -translate-x-1/2 rounded-[1.75rem] border border-white/80 bg-white/95 p-3 shadow-[0_24px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl ring-1 ring-[#166432]/20 md:max-w-[520px]"
         style={{ gridTemplateColumns: `repeat(${staffNavItems.length}, minmax(0, 1fr))` }}
       >
         {staffNavItems.map((item) => (
@@ -282,7 +291,7 @@ const Layout = ({ children }) => {
             to={item.to}
             className={({ isActive }) =>
               `flex min-w-0 flex-col items-center gap-1 rounded-2xl px-2 py-1 text-center text-[11px] font-bold ${
-                isActive ? "text-blue-700" : "text-slate-400"
+                isActive ? "text-[#166432]" : "text-slate-400"
               }`
             }
           >
@@ -291,7 +300,7 @@ const Layout = ({ children }) => {
                 <span
                   className={`grid h-9 w-9 place-items-center rounded-xl text-xl leading-none ${
                     isActive
-                      ? "bg-blue-600 text-white shadow-lg shadow-blue-700/25"
+                      ? "bg-[#166432] text-white shadow-lg shadow-[#166432]/30"
                       : "text-slate-400"
                   }`}
                 >

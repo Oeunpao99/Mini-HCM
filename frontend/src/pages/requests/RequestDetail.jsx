@@ -68,7 +68,7 @@ const getPrimaryReason = (reason) => {
 
 const formatLeaveType = (request) => {
   if (request.type === "leave") {
-    const labels = { annual: "Annual Leave", sick: "Sick Leave", special: "Special Leave", unpaid: "Unpaid Leave" };
+    const labels = { annual: "Annual Leave", sick: "Sick Leave", maternity: "Maternity Leave", paternity: "Paternity Leave", marriage: "Marriage Leave", compassionate: "Compassionate Leave", unpaid: "Unpaid Leave", special: "Special Leave", business: "Business Leave" };
     return labels[request.leave_type] || request.leave_type || "Leave";
   }
   return requestTypeLabels[request.type] || request.type;
