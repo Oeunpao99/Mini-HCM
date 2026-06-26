@@ -179,17 +179,6 @@ const RequestDetail = ({ request, onCancel, user, entitlement, taken, remaining 
         </div>
       )}
 
-      {/* Leave Balance (only for leave requests) */}
-      {request.type !== "ot" && (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <SectionTitle>Leave Balance</SectionTitle>
-          <div className="mt-3 space-y-2.5">
-            <FieldRow label="Leave Entitlement" value={`${entitlement ?? 18} days`} />
-            <FieldRow label="Leave Taken" value={`${taken ?? 0} days`} />
-            <FieldRow label="Remaining Balance" value={`${remaining ?? 18} days`} className={`text-right text-sm font-extrabold ${(remaining ?? 0) <= 0 ? "text-red-600" : "text-emerald-600"}`} />
-          </div>
-        </div>
-      )}
 
       {/* Approval */}
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -204,13 +193,6 @@ const RequestDetail = ({ request, onCancel, user, entitlement, taken, remaining 
         </div>
       </div>
 
-      {/* Remarks */}
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <SectionTitle>Remarks</SectionTitle>
-        <p className="mt-3 whitespace-pre-line text-sm font-extrabold text-slate-950">
-          {request.admin_remarks || requesterRemarks || "No remarks"}
-        </p>
-      </div>
 
       {request.status === "pending" && (
         <button

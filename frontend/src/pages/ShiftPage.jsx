@@ -343,6 +343,24 @@ export default function ShiftPage() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null); // { type: "shift-form" | "schedule-form" | "delete", data? }
+  const [deptFilter, setDeptFilter] = useState("all");
+  const [unitFilter, setUnitFilter] = useState("all");
+
+  const userMap = useMemo(() => new Map((users || []).map((u) => [u.id, u])), [users]);
+
+  const departments = useMemo(
+    () => [...new Set(users.map((u) => u.department).filter(Boolean))],
+    [users],
+  );
+  const unitOptions = useMemo(
+    () => [...new Set(
+      users
+        .filter((u) => deptFilter === "all" || u.department === deptFilter)
+        .map((u) => u.sub_department)
+        .filter(Boolean)
+    )],
+    [users, deptFilter],
+  );
 
   const loadAll = async () => {
     setLoading(true);
@@ -363,15 +381,85 @@ export default function ShiftPage() {
 
   useEffect(() => { void loadAll(); }, []);
 
+  const filteredSchedules = useMemo(() => {
+    return schedules.filter((sched) => {
+      const u = userMap.get(sched.user_id);
+      if (!u) return true;
+      if (deptFilter !== "all" && u.department !== deptFilter) return false;
+      if (unitFilter !== "all" && u.sub_department !== unitFilter) return false;
+      return true;
+    });
+  }, [schedules, userMap, deptFilter, unitFilter]);
+
+  const employeesByShift = useMemo(() => {
+    const map = new Map();
+    filteredSchedules.forEach((sched) => {
+      const key = sched.shift_name || "Unassigned";
+      if (!map.has(key)) map.set(key, new Map());
+      const empMap = map.get(key);
+      if (!empMap.has(sched.user_id)) {
+        const u = userMap.get(sched.user_id);
+        empMap.set(sched.user_id, {
+          id: sched.user_id,
+          name: sched.employee_name,
+          code: sched.employee_code,
+          department: sched.department,
+          sub_department: u?.sub_department,
+        });
+      }
+    });
+    return Array.from(map.entries())
+      .map(([shiftName, empMap]) => ({ shiftName, employees: Array.from(empMap.values()) }))
+      .filter((s) => s.shiftName !== "Standard Day")
+      .sort((a, b) => b.employees.length - a.employees.length);
+  }, [filteredSchedules, userMap]);
+
+  const shiftTypeMap = useMemo(
+    () => new Map((shifts || []).map((s) => [s.id, s.shift_type])),
+    [shifts],
+  );
+
+  const employeesByShiftType = useMemo(() => {
+    const init = Object.fromEntries(SHIFT_TYPES.map(([key, label]) => [key, { type: key, label, employees: [] }]));
+    const map = new Map(Object.entries(init));
+    const seen = {};
+    filteredSchedules.forEach((sched) => {
+      const type = shiftTypeMap.get(sched.shift_id) || "unknown";
+      const dedupKey = `${type}:${sched.user_id}`;
+      if (seen[dedupKey]) return;
+      seen[dedupKey] = true;
+      if (!map.has(type)) map.set(type, { type, label: "Other", employees: [] });
+      const u = userMap.get(sched.user_id);
+      map.get(type).employees.push({
+        id: sched.user_id,
+        name: sched.employee_name,
+        code: sched.employee_code,
+        department: sched.department,
+        sub_department: u?.sub_department,
+      });
+    });
+    return Array.from(map.values());
+  }, [filteredSchedules, shiftTypeMap, userMap]);
+
+  const totalEmployeeShifts = useMemo(
+    () => employeesByShift.reduce((sum, s) => sum + s.employees.length, 0),
+    [employeesByShift],
+  );
+
+  const splitShiftEmployees = useMemo(
+    () => employeesByShiftType.find((s) => s.type === "split")?.employees?.length ?? 0,
+    [employeesByShiftType],
+  );
+
   const WIDGETS = [
-    { label: "Total Active Shifts", value: stats?.total_active_shifts ?? "—", color: "bg-blue-500" },
-    { label: "Employees by Shift", value: schedules.length, color: "bg-green-500" },
-    { label: "Today's Assignments", value: stats?.today_assignments ?? "—", color: "bg-purple-500" },
+    { label: "Total Active Shifts", value: stats?.total_active_shifts ?? 0, color: "bg-blue-500" },
+    { label: "Total Employees", value: totalEmployeeShifts, color: "bg-green-500" },
+    { label: "Split Shift Employees", value: splitShiftEmployees, color: "bg-purple-500" },
     { label: "Upcoming Changes", value: "—", color: "bg-amber-500" },
-    { label: "Night Shift Employees", value: stats?.night_shift_count ?? "—", color: "bg-indigo-500" },
+    { label: "Night Shift Employees", value: stats?.night_shift_count ?? 0, color: "bg-indigo-500" },
     { label: "Shift Coverage Rate", value: "—%", color: "bg-teal-500" },
     { label: "Attendance Compliance", value: "—%", color: "bg-rose-500" },
-    { label: "Schedule Conflicts", value: stats?.schedule_conflicts ?? "0", color: "bg-red-500" },
+    { label: "Schedule Conflicts", value: stats?.schedule_conflicts ?? 0, color: "bg-red-500" },
   ];
 
   const handleSaveShift = async (form) => {
@@ -439,6 +527,71 @@ export default function ShiftPage() {
                 <p className="text-2xl font-extrabold text-slate-900">{w.value}</p>
                 <p className="text-xs font-semibold text-slate-500">{w.label}</p>
               </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <select value={deptFilter} onChange={(e) => { setDeptFilter(e.target.value); setUnitFilter("all"); }} className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none">
+          <option value="all">All Departments</option>
+          {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+        </select>
+        <select value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)} className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none">
+          <option value="all">All Units</option>
+          {unitOptions.map((u) => <option key={u} value={u}>{u}</option>)}
+        </select>
+      </div>
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {employeesByShift.map(({ shiftName, employees }) => (
+          <div key={shiftName} className="rounded-xl bg-white p-5 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <h4 className="text-base font-extrabold text-slate-900">{shiftName}</h4>
+              <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-blue-700">{employees.length}</span>
+            </div>
+            <div className="space-y-2 max-h-[260px] overflow-y-auto">
+              {employees.map((emp) => (
+                <div key={emp.id} className="flex items-center gap-2 rounded-lg hover:bg-slate-50">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-200 text-xs font-bold text-slate-600">
+                    {emp.name?.[0] || "?"}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-slate-900">{emp.name}</p>
+                    <p className="truncate text-[11px] font-semibold text-slate-500">{emp.code}{emp.department ? ` · ${emp.department}` : ""}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mb-4">
+        <h2 className="text-lg font-extrabold text-slate-900">Employees by Shift Type</h2>
+      </div>
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {employeesByShiftType.map(({ type, label, employees }) => (
+          <div key={type} className="rounded-xl bg-white p-5 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <h4 className="text-base font-extrabold text-slate-900">{label}</h4>
+              <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-blue-700">{employees.length}</span>
+            </div>
+            <div className="space-y-2 max-h-[260px] overflow-y-auto">
+              {employees.length === 0 ? (
+                <p className="text-sm text-slate-400">No employees</p>
+              ) : employees.map((emp) => (
+                <div key={emp.id} className="flex items-center gap-2 rounded-lg hover:bg-slate-50">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-200 text-xs font-bold text-slate-600">
+                    {emp.name?.[0] || "?"}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-slate-900">{emp.name}</p>
+                    <p className="truncate text-[11px] font-semibold text-slate-500">{emp.code}{emp.department ? ` · ${emp.department}` : ""}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         ))}

@@ -30,6 +30,7 @@ import {
 } from "recharts";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
+import RequestDetail from "./requests/RequestDetail";
 
 const standardHours = 8;
 const pageSizeOptions = [5, 10, 20];
@@ -127,6 +128,24 @@ const isApprovedLeave = (request) =>
 
 const numberFormat = (value) => Number(value || 0).toLocaleString();
 
+const requestLeaveTypeLabel = (request) => {
+  if (!request) return "-";
+  if (request.type === "leave") {
+    const labels = { annual: "Annual Leave", sick: "Sick Leave", maternity: "Maternity Leave", paternity: "Paternity Leave", marriage: "Marriage Leave", compassionate: "Compassionate Leave", unpaid: "Unpaid Leave", special: "Special Leave", business: "Business Leave" };
+    return labels[request.leave_type] || request.leave_type || "Leave";
+  }
+  if (request.type === "permission") return "Permission";
+  if (request.type === "flexible") return "Flexible Work";
+  if (request.type === "ot") return "Overtime";
+  return request.type || "Request";
+};
+
+const requestStatusBadgeClass = (status) => {
+  if (status === "approved") return "bg-emerald-100 text-emerald-700";
+  if (status === "rejected") return "bg-red-100 text-red-700";
+  return "bg-amber-100 text-amber-700";
+};
+
 const StatCard = ({ label, value, helper, icon: Icon, tone }) => (
   <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
     <div className="flex items-center gap-4">
@@ -150,6 +169,7 @@ const AdminPage = () => {
   const [users, setUsers] = useState([]);
   const [requests, setRequests] = useState([]);
   const [attendance, setAttendance] = useState([]);
+  const [schedules, setSchedules] = useState([]);
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [unitFilter, setUnitFilter] = useState("all");
@@ -157,18 +177,22 @@ const AdminPage = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
   const [loading, setLoading] = useState(true);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [selectedRequestUser, setSelectedRequestUser] = useState(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      const [usersRes, reqRes, attRes] = await Promise.all([
+      const [usersRes, reqRes, attRes, schedRes] = await Promise.all([
         api.get("/api/admin/users"),
         api.get("/api/requests/all"),
         api.get("/api/admin/all-attendance"),
+        api.get("/api/shifts/schedules"),
       ]);
       setUsers(usersRes.data || []);
       setRequests(reqRes.data || []);
       setAttendance(attRes.data || []);
+      setSchedules(schedRes.data || []);
     } finally {
       setLoading(false);
     }
@@ -201,6 +225,14 @@ const AdminPage = () => {
     return map;
   }, [requests]);
 
+  const scheduleByUserDate = useMemo(() => {
+    const map = new Map();
+    schedules.forEach((sched) => {
+      map.set(`${sched.user_id}:${dateKey(sched.work_date)}`, sched);
+    });
+    return map;
+  }, [schedules]);
+
   const rows = useMemo(() => {
     const sd = new Date(`${startDate}T00:00:00`);
     const ed = new Date(`${endDate}T00:00:00`);
@@ -216,6 +248,7 @@ const AdminPage = () => {
       for (const user of users) {
         const record = attendanceByUserDate.get(`${user.id}:${key}`);
         const request = requestByUserDate.get(`${user.id}:${key}`);
+        const schedule = scheduleByUserDate.get(`${user.id}:${key}`);
         if (record) {
           const present = hasScan(record);
           const status = isApprovedLeave(request)
@@ -231,6 +264,7 @@ const AdminPage = () => {
             user,
             record,
             request,
+            schedule,
             status,
             workedHours: Number(record?.worked_hours || 0),
             location: present ? (record?.flexible_scan ? "Client Site" : "Office") : "-",
@@ -242,6 +276,7 @@ const AdminPage = () => {
             user,
             record: null,
             request,
+            schedule,
             status: isApprovedLeave(request) ? "leave" : "absent",
             workedHours: 0,
             location: "-",
@@ -250,7 +285,7 @@ const AdminPage = () => {
       }
     }
     return allRows;
-  }, [attendanceByUserDate, requestByUserDate, users, startDate, endDate]);
+  }, [attendanceByUserDate, requestByUserDate, scheduleByUserDate, users, startDate, endDate]);
 
   const departments = useMemo(
     () => [...new Set(users.map((user) => user.department).filter(Boolean))],
@@ -512,6 +547,7 @@ const AdminPage = () => {
                   <th className="px-3 py-3">Check-Out</th>
                   <th className="px-3 py-3">Work Hours</th>
                   <th className="px-3 py-3">Status</th>
+                  <th className="px-3 py-3">Leave Request</th>
                   <th className="px-3 py-3">Shift</th>
                   <th className="px-3 py-3">Late Min</th>
                   <th className="px-3 py-3">Early Leave</th>
@@ -523,9 +559,9 @@ const AdminPage = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
-                  <tr><td colSpan={17} className="px-5 py-10 text-center font-bold text-slate-400">Loading attendance...</td></tr>
+                  <tr><td colSpan={18} className="px-5 py-10 text-center font-bold text-slate-400">Loading attendance...</td></tr>
                 ) : pageRows.length === 0 ? (
-                  <tr><td colSpan={17} className="px-5 py-10 text-center font-bold text-slate-400">No attendance rows match the filters.</td></tr>
+                  <tr><td colSpan={18} className="px-5 py-10 text-center font-bold text-slate-400">No attendance rows match the filters.</td></tr>
                 ) : pageRows.map((row) => {
                   const lateMin = computeLateMinutes(row.record?.check_in_time);
                   const earlyMin = computeEarlyLeaveMinutes(row.record?.check_out_time);
@@ -553,7 +589,23 @@ const AdminPage = () => {
                         {statusLabel(row.status)}
                       </span>
                     </td>
-                    <td className="px-3 py-3 font-semibold text-slate-500">-</td>
+                    <td className="px-3 py-3">
+                      {row.request ? (
+                        <button
+                          type="button"
+                          onClick={() => { setSelectedRequest(row.request); setSelectedRequestUser(row.user); }}
+                          className="flex items-center gap-2 rounded-md px-2 py-1 text-xs font-semibold hover:bg-slate-100"
+                        >
+                          <span className="text-[#111b4f]">{requestLeaveTypeLabel(row.request)}</span>
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${requestStatusBadgeClass(row.request.status)}`}>
+                            {row.request.status === "approved" ? "Approved" : row.request.status === "rejected" ? "Rejected" : "Pending"}
+                          </span>
+                        </button>
+                      ) : (
+                        <span className="text-xs font-semibold text-slate-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 font-semibold text-[#111b4f]">{row.schedule?.shift_name || "-"}</td>
                     <td className="px-3 py-3 font-semibold text-[#111b4f]">{lateMin !== null && lateMin > 0 ? <span className="text-orange-600">{formatMinutes(lateMin)}</span> : lateMin === 0 ? <span className="text-emerald-600">0m</span> : "-"}</td>
                     <td className="px-3 py-3 font-semibold text-[#111b4f]">{earlyMin !== null && earlyMin > 0 ? <span className="text-orange-600">{formatMinutes(earlyMin)}</span> : earlyMin === 0 ? <span className="text-emerald-600">0m</span> : "-"}</td>
                     <td className="px-3 py-3 font-semibold text-[#111b4f]">{otHours > 0 ? <span className="text-violet-600">{formatHours(otHours)}</span> : "-"}</td>
@@ -564,13 +616,19 @@ const AdminPage = () => {
                         <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-extrabold text-red-700">Rejected</span>
                       ) : row.record?.needs_approval_reason ? (
                         <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-extrabold text-amber-700">Pending</span>
+                      ) : row.request?.status === "approved" ? (
+                        <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-extrabold text-blue-700">On Leave</span>
+                      ) : row.request?.status === "rejected" ? (
+                        <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-extrabold text-red-700">Rejected</span>
+                      ) : row.request?.status === "pending" ? (
+                        <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-extrabold text-amber-700">Pending</span>
                       ) : (
                         <span className="text-xs font-semibold text-slate-400">-</span>
                       )}
                     </td>
                     <td className="max-w-[150px] truncate px-3 py-3 font-semibold text-[#111b4f]" title={row.record?.remark || ""}>{row.record?.remark || "-"}</td>
                     <td className="px-3 py-3 text-right">
-                      <button type="button" className="grid h-8 w-8 place-items-center rounded-lg text-[#111b4f] hover:bg-slate-100" aria-label={`More actions for ${row.user.name}`}>
+                      <button type="button" onClick={() => { setSelectedRequest(row.request); setSelectedRequestUser(row.user); }} className="grid h-8 w-8 place-items-center rounded-lg text-[#111b4f] hover:bg-slate-100" aria-label={`More actions for ${row.user.name}`}>
                         <FiMoreVertical className="h-4 w-4" aria-hidden />
                       </button>
                     </td>
@@ -622,6 +680,25 @@ const AdminPage = () => {
           </div>
         )}
       </div>
+
+      {selectedRequest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="relative w-[70vw] max-h-[80vh] overflow-y-auto rounded-2xl bg-white p-8 shadow-2xl">
+            <button
+              type="button"
+              onClick={() => { setSelectedRequest(null); setSelectedRequestUser(null); }}
+              className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-sm font-extrabold text-slate-500 hover:bg-slate-200"
+            >
+              &times;
+            </button>
+            <RequestDetail
+              request={selectedRequest}
+              user={selectedRequestUser}
+              onCancel={() => {}}
+            />
+          </div>
+        </div>
+      )}
     </section>
   );
 };
