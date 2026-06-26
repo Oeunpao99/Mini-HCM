@@ -13,6 +13,7 @@ export const AuthProvider = ({ children }) => {
   const [role, setRole] = useState(normalizeRole(localStorage.getItem("role")));
   const [name, setName] = useState(localStorage.getItem("name"));
   const [empCode, setEmpCode] = useState(localStorage.getItem("empCode"));
+  const [userId, setUserId] = useState(localStorage.getItem("userId"));
   const [department, setDepartment] = useState(localStorage.getItem("department"));
 
   const login = async (emp_code, password) => {
@@ -22,11 +23,13 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("role", normalizedRole);
     localStorage.setItem("name", data.name);
     localStorage.setItem("empCode", emp_code);
+    localStorage.setItem("userId", String(data.user_id || ""));
     localStorage.setItem("department", data.department || "");
     setToken(data.access_token);
     setRole(normalizedRole);
     setName(data.name);
     setEmpCode(emp_code);
+    setUserId(String(data.user_id || ""));
     setDepartment(data.department || "");
   };
 
@@ -36,12 +39,13 @@ export const AuthProvider = ({ children }) => {
     setRole(null);
     setName(null);
     setEmpCode(null);
+    setUserId(null);
     setDepartment(null);
   };
 
   const value = useMemo(
-    () => ({ token, role, name, empCode, department, login, logout }),
-    [token, role, name, empCode, department],
+    () => ({ token, role, name, empCode, userId, department, login, logout }),
+    [token, role, name, empCode, userId, department],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

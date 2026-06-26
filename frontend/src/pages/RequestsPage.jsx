@@ -83,13 +83,25 @@ const requestTypeDefinitions = [
 
 const ANNUAL_LEAVE = 18;
 const SICK_LEAVE = 6;
-const MATERNITY_LEAVE = 90;
-const PATERNITY_LEAVE = 14;
-const MARRIAGE_LEAVE = 3;
-const COMPASSIONATE_LEAVE = 3;
-const UNPAID_LEAVE = 5;
-const SPECIAL_LEAVE = 6;
-const BUSINESS_LEAVE = 5;
+const MATERNITY_LEAVE = 0;
+const PATERNITY_LEAVE = 0;
+const MARRIAGE_LEAVE = 0;
+const COMPASSIONATE_LEAVE = 0;
+const UNPAID_LEAVE = 0;
+const SPECIAL_LEAVE = 0;
+const BUSINESS_LEAVE = 0;
+const defaultLeaveEntitlements = {
+  annual: ANNUAL_LEAVE,
+  sick: SICK_LEAVE,
+  maternity: MATERNITY_LEAVE,
+  paternity: PATERNITY_LEAVE,
+  marriage: MARRIAGE_LEAVE,
+  compassionate: COMPASSIONATE_LEAVE,
+  unpaid: UNPAID_LEAVE,
+  special: SPECIAL_LEAVE,
+  business: BUSINESS_LEAVE,
+};
+const leaveEntitlementFields = leaveTypes.map(([key, label]) => ({ key, label }));
 const managementRoles = ["line_manager", "department_head", "management_hr", "payroll_officer"];
 const leaveTypeColors = {
   annual: "#1f7aff",
@@ -499,11 +511,14 @@ const initialForm = {
 const RequestsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { role, empCode, name, department } = useAuth();
+  const { role, empCode, name, userId, department } = useAuth();
   const isManagement = managementRoles.includes(role);
   const [form, setForm] = useState(initialForm);
   const [attachment, setAttachment] = useState(null);
   const [items, setItems] = useState([]);
+  const [leaveEntitlements, setLeaveEntitlements] = useState([]);
+  const [entitlementDrafts, setEntitlementDrafts] = useState({});
+  const [entitlementSavingId, setEntitlementSavingId] = useState(null);
   const [assignedItems, setAssignedItems] = useState([]);
   const [backupOptions, setBackupOptions] = useState([]);
   const [users, setUsers] = useState([]);
@@ -531,18 +546,20 @@ const RequestsPage = () => {
   }, [location.search]);
 
   const load = async () => {
-    const [requestRes, assignedRes, backupRes, usersRes, flowRes] = await Promise.all([
+    const [requestRes, assignedRes, backupRes, usersRes, flowRes, entitlementRes] = await Promise.all([
       isManagement ? api.get("/api/requests/all") : api.get("/api/requests/my"),
       api.get("/api/requests/assigned-to-me").catch(() => ({ data: [] })),
       api.get("/api/requests/backup-options").catch(() => ({ data: [] })),
       isManagement ? api.get("/api/admin/users").catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
       isManagement ? api.get("/api/requests/approval-flow").catch(() => ({ data: { stages: defaultApprovalFlow } })) : Promise.resolve({ data: { stages: defaultApprovalFlow } }),
+      api.get("/api/requests/leave-entitlements").catch(() => ({ data: [] })),
     ]);
     setItems(requestRes.data);
     setAssignedItems(assignedRes.data);
     setBackupOptions(backupRes.data);
     setUsers(usersRes.data || []);
     setApprovalFlow(Array.isArray(flowRes.data?.stages) && flowRes.data.stages.length ? flowRes.data.stages : defaultApprovalFlow);
+    setLeaveEntitlements(entitlementRes.data || []);
   };
 
   useEffect(() => {
@@ -602,17 +619,17 @@ const RequestsPage = () => {
         String(request.date || "").startsWith(currentYear),
     );
 
-    const typeMap = {
-      annual: { used: 0, total: ANNUAL_LEAVE },
-      sick: { used: 0, total: SICK_LEAVE },
-      maternity: { used: 0, total: MATERNITY_LEAVE },
-      paternity: { used: 0, total: PATERNITY_LEAVE },
-      marriage: { used: 0, total: MARRIAGE_LEAVE },
-      compassionate: { used: 0, total: COMPASSIONATE_LEAVE },
-      unpaid: { used: 0, total: UNPAID_LEAVE },
-      special: { used: 0, total: SPECIAL_LEAVE },
-      business: { used: 0, total: BUSINESS_LEAVE },
-    };
+    const entitlement =
+      leaveEntitlements.find((row) => Number(row.user_id) === Number(userId)) ||
+      leaveEntitlements[0] ||
+      defaultLeaveEntitlements;
+
+    const typeMap = Object.fromEntries(
+      leaveEntitlementFields.map(({ key }) => [
+        key,
+        { used: 0, total: Number(entitlement[key] ?? defaultLeaveEntitlements[key]) },
+      ]),
+    );
 
     approvedLeaves.forEach((request) => {
       const lt = String(request.leave_type || "annual").toLowerCase();
@@ -627,7 +644,7 @@ const RequestsPage = () => {
       summary[`remaining${key.charAt(0).toUpperCase() + key.slice(1)}`] = Math.max(0, val.total - val.used).toFixed(2);
     }
     return summary;
-  }, [items]);
+  }, [items, leaveEntitlements, userId]);
 
   const selectedRequest = useMemo(() => {
     if (!selectedRequestId) return null;
@@ -648,15 +665,25 @@ const RequestsPage = () => {
     () => users.find((user) => String(user.emp_code) === String(empCode)) || null,
     [empCode, users],
   );
+  const entitlementByUserId = useMemo(
+    () => new Map(leaveEntitlements.map((row) => [Number(row.user_id), row])),
+    [leaveEntitlements],
+  );
+  const getUserEntitlements = (userId) => ({
+    ...defaultLeaveEntitlements,
+    ...(entitlementByUserId.get(Number(userId)) || {}),
+  });
   const formUser = currentUser || {
+    id: Number(userId),
     emp_code: empCode,
     name,
     department,
   };
   const formLeaveBalance = useMemo(() => {
     const currentYear = String(new Date().getFullYear());
-    const source = currentUser
-      ? items.filter((request) => request.user_id === currentUser.id)
+    const activeUserId = currentUser?.id || Number(userId);
+    const source = activeUserId
+      ? items.filter((request) => Number(request.user_id) === Number(activeUserId))
       : items;
     const approvedLeaves = source.filter(
       (request) =>
@@ -666,15 +693,26 @@ const RequestsPage = () => {
     );
     const taken = approvedLeaves.reduce((sum, request) => sum + getRequestDays(request), 0);
     return {
-      entitlement: ANNUAL_LEAVE,
+      entitlement: getUserEntitlements(activeUserId).annual,
       taken,
-      remaining: Math.max(0, ANNUAL_LEAVE - taken),
+      remaining: Math.max(0, getUserEntitlements(activeUserId).annual - taken),
     };
-  }, [currentUser, items]);
+  }, [currentUser, entitlementByUserId, items, userId]);
   const nextLeaveRequestNo = useMemo(() => {
     const maxId = items.reduce((max, request) => Math.max(max, Number(request.id) || 0), 0);
     return `LR-${String(maxId + 1).padStart(5, "0")}`;
   }, [items]);
+
+  useEffect(() => {
+    const nextDrafts = {};
+    const sourceUsers = users.length ? users : formUser.id ? [formUser] : [];
+    sourceUsers.forEach((user) => {
+      if (!user?.id) return;
+      nextDrafts[user.id] = getUserEntitlements(user.id);
+    });
+    setEntitlementDrafts(nextDrafts);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leaveEntitlements, users, formUser.id]);
 
   const departmentOptions = useMemo(
     () => [...new Set(users.map((user) => user.department).filter(Boolean))],
@@ -742,7 +780,6 @@ const RequestsPage = () => {
   }, [users, deptFilter, unitFilter]);
 
   const managementStats = useMemo(() => {
-    const filteredUserCount = Math.max(filteredUsers.length, 1);
     const [year, month] = leaveMonth.split("-").map(Number);
     const scope = requestType === "ot"
       ? filteredManagementRequests.filter((r) => r.type === "ot")
@@ -786,15 +823,18 @@ const RequestsPage = () => {
     const usedBusiness = leaveRequests
       .filter((request) => request.status === "approved" && String(request.leave_type || "").includes("business"))
       .reduce((sum, request) => sum + getRequestDays(request), 0);
-    const totalAnnual = filteredUserCount * ANNUAL_LEAVE;
-    const totalSick = filteredUserCount * SICK_LEAVE;
-    const totalMaternity = filteredUserCount * MATERNITY_LEAVE;
-    const totalPaternity = filteredUserCount * PATERNITY_LEAVE;
-    const totalMarriage = filteredUserCount * MARRIAGE_LEAVE;
-    const totalCompassionate = filteredUserCount * COMPASSIONATE_LEAVE;
-    const totalUnpaid = filteredUserCount * UNPAID_LEAVE;
-    const totalSpecial = filteredUserCount * SPECIAL_LEAVE;
-    const totalBusiness = filteredUserCount * BUSINESS_LEAVE;
+    const usersForTotals = filteredUsers.length ? filteredUsers : [{ id: currentUser?.id || Number(userId) }];
+    const sumEntitlement = (key) =>
+      usersForTotals.reduce((sum, row) => sum + Number(getUserEntitlements(row.id)[key] || 0), 0);
+    const totalAnnual = sumEntitlement("annual");
+    const totalSick = sumEntitlement("sick");
+    const totalMaternity = sumEntitlement("maternity");
+    const totalPaternity = sumEntitlement("paternity");
+    const totalMarriage = sumEntitlement("marriage");
+    const totalCompassionate = sumEntitlement("compassionate");
+    const totalUnpaid = sumEntitlement("unpaid");
+    const totalSpecial = sumEntitlement("special");
+    const totalBusiness = sumEntitlement("business");
     const balanceData = [
       { name: "Annual Leave", value: Math.max(0, totalAnnual - usedAnnual), color: leaveTypeColors.annual },
       { name: "Sick Leave", value: Math.max(0, totalSick - usedSick), color: leaveTypeColors.sick },
@@ -898,7 +938,7 @@ const RequestsPage = () => {
       paidOtHours: Math.round(paidOtHours * 10) / 10,
       otCostSummary,
     };
-  }, [leaveMonth, filteredManagementRequests, requestType, userById, users.length]);
+  }, [leaveMonth, filteredManagementRequests, requestType, userById, filteredUsers, entitlementByUserId, currentUser, userId]);
 
   const days = useMemo(
     () => dateDiffDays(form.start_date, form.end_date),
@@ -920,6 +960,50 @@ const RequestsPage = () => {
 
   const updateForm = (patch) => {
     setForm((previous) => ({ ...previous, ...patch }));
+  };
+
+  const updateEntitlementDraft = (targetUserId, key, value) => {
+    setEntitlementDrafts((previous) => ({
+      ...previous,
+      [targetUserId]: {
+        ...defaultLeaveEntitlements,
+        ...(previous[targetUserId] || {}),
+        [key]: value,
+      },
+    }));
+  };
+
+  const saveLeaveEntitlement = async (targetUserId) => {
+    const draft = {
+      ...defaultLeaveEntitlements,
+      ...(entitlementDrafts[targetUserId] || {}),
+    };
+    const payload = {
+      user_id: Number(targetUserId),
+      ...Object.fromEntries(
+        leaveEntitlementFields.map(({ key }) => [key, Number(draft[key]) || 0]),
+      ),
+    };
+
+    setEntitlementSavingId(targetUserId);
+    setActionFeedback(null);
+    try {
+      const { data } = await api.put(`/api/requests/leave-entitlements/${targetUserId}`, payload);
+      setLeaveEntitlements((previous) => {
+        const others = previous.filter((row) => Number(row.user_id) !== Number(targetUserId));
+        return [...others, data];
+      });
+      setStatus("Leave entitlement updated");
+      setActionFeedback({ type: "success", message: "Leave entitlement updated" });
+      window.setTimeout(() => setActionFeedback(null), 2600);
+    } catch (err) {
+      const message = err?.response?.data?.detail || err.message || "Could not update leave entitlement";
+      setStatus(message);
+      setActionFeedback({ type: "danger", message });
+      window.setTimeout(() => setActionFeedback(null), 3200);
+    } finally {
+      setEntitlementSavingId(null);
+    }
   };
 
   const submitPayload = () => {
@@ -2010,7 +2094,18 @@ const RequestsPage = () => {
                 />
               )}
 
-              {(leaveTab === "Entitlement" || leaveTab === "Remaining Balance") && (
+              {leaveTab === "Entitlement" && (
+                <LeaveEntitlementPanel
+                  users={filteredUsers}
+                  drafts={entitlementDrafts}
+                  onDraftChange={updateEntitlementDraft}
+                  onSave={saveLeaveEntitlement}
+                  savingId={entitlementSavingId}
+                  canEdit={["line_manager", "department_head", "management_hr"].includes(role)}
+                />
+              )}
+
+              {leaveTab === "Remaining Balance" && (
                 <LeaveBalancePanel
                   balanceData={managementStats.balanceData}
                   mode={leaveTab}
@@ -2062,14 +2157,15 @@ const RequestsPage = () => {
           const isSick = String(`${r.leave_type || ""} ${r.reason || ""}`).toLowerCase().includes("sick");
           return isSick ? sum : sum + getRequestDays(r);
         }, 0);
-        const remaining = Math.max(0, ANNUAL_LEAVE - usedAnnual);
+        const selectedEntitlement = getUserEntitlements(selectedRequest.user_id).annual;
+        const remaining = Math.max(0, selectedEntitlement - usedAnnual);
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setSelectedRequestId(null)}>
           <div className="relative max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <button type="button" onClick={() => setSelectedRequestId(null)} className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full text-slate-600 hover:bg-slate-100">
               <FiX className="h-5 w-5" />
             </button>
-            <RequestDetail request={selectedRequest} onCancel={cancelPending} user={selectedUser} entitlement={ANNUAL_LEAVE} taken={usedAnnual} remaining={remaining} />
+            <RequestDetail request={selectedRequest} onCancel={cancelPending} user={selectedUser} entitlement={selectedEntitlement} taken={usedAnnual} remaining={remaining} />
           </div>
         </div>
         );
@@ -2197,14 +2293,15 @@ const RequestsPage = () => {
         const isSick = String(`${r.leave_type || ""} ${r.reason || ""}`).toLowerCase().includes("sick");
         return isSick ? sum : sum + getRequestDays(r);
       }, 0);
-      const remaining = Math.max(0, ANNUAL_LEAVE - usedAnnual);
+      const selectedEntitlement = getUserEntitlements(selectedRequest.user_id).annual;
+      const remaining = Math.max(0, selectedEntitlement - usedAnnual);
       return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setSelectedRequestId(null)}>
         <div className="relative max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
           <button type="button" onClick={() => setSelectedRequestId(null)} className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full text-slate-600 hover:bg-slate-100">
             <FiX className="h-5 w-5" />
           </button>
-          <RequestDetail request={selectedRequest} onCancel={cancelPending} user={selectedUser} entitlement={ANNUAL_LEAVE} taken={usedAnnual} remaining={remaining} />
+          <RequestDetail request={selectedRequest} onCancel={cancelPending} user={selectedUser} entitlement={selectedEntitlement} taken={usedAnnual} remaining={remaining} />
         </div>
       </div>
       );
@@ -2303,6 +2400,91 @@ const ApprovalFlowSettings = ({ flow, onToggleStage, onMoveStage, onSave, saving
     </section>
   );
 };
+
+const LeaveEntitlementPanel = ({ users, drafts, onDraftChange, onSave, savingId, canEdit }) => (
+  <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+    <div className="border-b border-slate-100 p-5">
+      <h2 className="text-lg font-extrabold text-[#11164a]">Employee Leave Entitlement</h2>
+      <p className="mt-1 text-sm font-semibold text-slate-500">
+        Set custom leave amounts per employee. Saved values are used in leave balance calculations.
+      </p>
+      {!canEdit && (
+        <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm font-bold text-amber-700">
+          Only HR and managers can edit leave entitlements.
+        </p>
+      )}
+    </div>
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[1320px] text-left text-sm">
+        <thead className="bg-slate-50 text-xs font-extrabold uppercase text-[#11164a]">
+          <tr>
+            <th className="sticky left-0 z-10 bg-slate-50 px-5 py-4">Employee</th>
+            <th className="px-4 py-4">Department</th>
+            {leaveEntitlementFields.map((field) => (
+              <th key={field.key} className="px-3 py-4">{field.label}</th>
+            ))}
+            <th className="sticky right-0 z-10 bg-slate-50 px-5 py-4 text-right">Action</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {users.map((user) => {
+            const draft = {
+              ...defaultLeaveEntitlements,
+              ...(drafts[user.id] || {}),
+            };
+            return (
+              <tr key={user.id} className="hover:bg-slate-50/70">
+                <td className="sticky left-0 bg-white px-5 py-4">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-9 w-9 place-items-center rounded-full bg-slate-200 text-xs font-extrabold text-[#11164a]">
+                      {String(user.name || "U").split(" ").map((part) => part[0]).join("").slice(0, 2)}
+                    </span>
+                    <div>
+                      <p className="font-extrabold text-[#11164a]">{user.name}</p>
+                      <p className="text-xs font-bold text-slate-500">{user.emp_code}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-4 py-4 font-semibold text-slate-600">{user.department || "-"}</td>
+                {leaveEntitlementFields.map((field) => (
+                  <td key={field.key} className="px-3 py-4">
+                    <input
+                      type="number"
+                      min="0"
+                      max="365"
+                      step="0.5"
+                      value={draft[field.key] ?? 0}
+                      onChange={(event) => onDraftChange(user.id, field.key, event.target.value)}
+                      disabled={!canEdit}
+                      className="h-10 w-24 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-[#11164a] outline-none focus:border-[#5b21e8]"
+                    />
+                  </td>
+                ))}
+                <td className="sticky right-0 bg-white px-5 py-4 text-right">
+                  <button
+                    type="button"
+                    onClick={() => onSave(user.id)}
+                    disabled={!canEdit || savingId === user.id}
+                    className="h-10 rounded-md bg-[#5b21e8] px-4 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    {savingId === user.id ? "Saving..." : "Save"}
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+          {users.length === 0 && (
+            <tr>
+              <td colSpan={leaveEntitlementFields.length + 3} className="px-5 py-10 text-center text-sm font-bold text-slate-400">
+                No employees found for the current filters.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  </section>
+);
 
 const LeaveBalancePanel = ({ balanceData, mode, totalBalance, usersCount }) => {
   const entitlementRows = [

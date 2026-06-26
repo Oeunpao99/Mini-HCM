@@ -4,7 +4,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import (
+    DEPARTMENT_HEAD_ROLE,
+    LINE_MANAGER_ROLE,
+    MANAGEMENT_HR_ROLE,
+    get_current_user,
+    get_db,
+    require_roles,
+)
 from app.models.hris import ShiftSchedule
 from app.models.shift.models import ShiftMaster
 from app.models.user import User
@@ -58,6 +65,7 @@ class ScheduleCreate(BaseModel):
 class ScheduleUpdate(BaseModel):
     shift_id: int | None = None
     shift_name: str | None = None
+    work_date: str | None = None
     start_time: str | None = None
     end_time: str | None = None
     location: str | None = None
@@ -90,7 +98,7 @@ def list_shifts(
 def create_shift(
     payload: ShiftMasterCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_roles(LINE_MANAGER_ROLE, DEPARTMENT_HEAD_ROLE, MANAGEMENT_HR_ROLE)),
 ):
     existing = db.query(ShiftMaster).filter(ShiftMaster.shift_code == payload.shift_code).first()
     if existing:
@@ -119,7 +127,7 @@ def update_shift(
     shift_id: int,
     payload: ShiftMasterUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_roles(LINE_MANAGER_ROLE, DEPARTMENT_HEAD_ROLE, MANAGEMENT_HR_ROLE)),
 ):
     shift = db.query(ShiftMaster).filter(ShiftMaster.id == shift_id).first()
     if not shift:
@@ -136,7 +144,7 @@ def update_shift(
         shift.break_start_time = parse_time(payload.break_start_time)
     if payload.break_end_time is not None:
         shift.break_end_time = parse_time(payload.break_end_time)
-    if payload.working_hours is not None:
+    if "working_hours" in payload.model_fields_set:
         shift.working_hours = payload.working_hours
     if payload.late_tolerance_minutes is not None:
         shift.late_tolerance_minutes = payload.late_tolerance_minutes
@@ -153,7 +161,7 @@ def update_shift(
 def delete_shift(
     shift_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_roles(LINE_MANAGER_ROLE, DEPARTMENT_HEAD_ROLE, MANAGEMENT_HR_ROLE)),
 ):
     shift = db.query(ShiftMaster).filter(ShiftMaster.id == shift_id).first()
     if not shift:
@@ -202,13 +210,22 @@ def list_schedules(
 def create_schedule(
     payload: ScheduleCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_roles(LINE_MANAGER_ROLE, DEPARTMENT_HEAD_ROLE, MANAGEMENT_HR_ROLE)),
 ):
+    work_date = datetime.strptime(payload.work_date, "%Y-%m-%d").date()
+    existing = db.query(ShiftSchedule).filter(
+        ShiftSchedule.user_id == payload.user_id,
+        ShiftSchedule.work_date == work_date,
+        ShiftSchedule.is_active == True,
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Employee already has a schedule on this date")
+
     schedule = ShiftSchedule(
         user_id=payload.user_id,
         shift_id=payload.shift_id,
         shift_name=payload.shift_name,
-        work_date=datetime.strptime(payload.work_date, "%Y-%m-%d").date(),
+        work_date=work_date,
         start_time=parse_time(payload.start_time),
         end_time=parse_time(payload.end_time),
         location=payload.location,
@@ -242,7 +259,7 @@ def update_schedule(
     schedule_id: int,
     payload: ScheduleUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_roles(LINE_MANAGER_ROLE, DEPARTMENT_HEAD_ROLE, MANAGEMENT_HR_ROLE)),
 ):
     schedule = db.query(ShiftSchedule).filter(ShiftSchedule.id == schedule_id).first()
     if not schedule:
@@ -251,6 +268,17 @@ def update_schedule(
         schedule.shift_id = payload.shift_id
     if payload.shift_name is not None:
         schedule.shift_name = payload.shift_name
+    if payload.work_date is not None:
+        next_date = datetime.strptime(payload.work_date, "%Y-%m-%d").date()
+        existing = db.query(ShiftSchedule).filter(
+            ShiftSchedule.id != schedule_id,
+            ShiftSchedule.user_id == schedule.user_id,
+            ShiftSchedule.work_date == next_date,
+            ShiftSchedule.is_active == True,
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Employee already has a schedule on this date")
+        schedule.work_date = next_date
     if payload.start_time is not None:
         schedule.start_time = parse_time(payload.start_time)
     if payload.end_time is not None:
@@ -276,7 +304,7 @@ def update_schedule(
 def delete_schedule(
     schedule_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_roles(LINE_MANAGER_ROLE, DEPARTMENT_HEAD_ROLE, MANAGEMENT_HR_ROLE)),
 ):
     schedule = db.query(ShiftSchedule).filter(ShiftSchedule.id == schedule_id).first()
     if not schedule:

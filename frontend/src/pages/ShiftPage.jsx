@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { FiClock, FiUsers, FiX, FiEdit2, FiTrash2, FiPlus, FiChevronLeft } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
+import { useAuth } from "../context/AuthContext";
 
 const TABS = [
   { key: "setup", label: "Shift Setup", icon: <FiClock className="h-4 w-4" /> },
@@ -18,12 +19,12 @@ const SHIFT_TYPES = [
 
 const inputClass = "h-11 w-full rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium outline-none focus:border-blue-500";
 
-const ShiftSetupTab = ({ shifts, onEdit, onDelete, onAdd }) => (
+const ShiftSetupTab = ({ shifts, onEdit, onDelete, onAdd, canManage }) => (
   <div className="space-y-6">
     <div className="rounded-xl bg-white p-6 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-lg font-extrabold text-slate-900">Shift Informations</h3>
-        <button onClick={onAdd} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700">
+        <button disabled={!canManage} onClick={onAdd} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">
           <FiPlus className="h-4 w-4" /> Add Shift
         </button>
       </div>
@@ -69,8 +70,8 @@ const ShiftSetupTab = ({ shifts, onEdit, onDelete, onAdd }) => (
                 </td>
                 <td className="py-3 pr-4 text-right">
                   <div className="flex justify-end gap-1">
-                    <button onClick={() => onEdit(s)} className="grid h-8 w-8 place-items-center rounded-md text-slate-500 hover:bg-slate-100"><FiEdit2 className="h-4 w-4" /></button>
-                    <button onClick={() => onDelete(s)} className="grid h-8 w-8 place-items-center rounded-md text-red-500 hover:bg-red-50"><FiTrash2 className="h-4 w-4" /></button>
+                    <button disabled={!canManage} onClick={() => onEdit(s)} className="grid h-8 w-8 place-items-center rounded-md text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"><FiEdit2 className="h-4 w-4" /></button>
+                    <button disabled={!canManage} onClick={() => onDelete(s)} className="grid h-8 w-8 place-items-center rounded-md text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"><FiTrash2 className="h-4 w-4" /></button>
                   </div>
                 </td>
               </tr>
@@ -94,14 +95,14 @@ const ShiftSetupTab = ({ shifts, onEdit, onDelete, onAdd }) => (
   </div>
 );
 
-const ScheduleAssignmentTab = ({ schedules, users, shifts, onEdit, onDelete, onAdd }) => {
+const ScheduleAssignmentTab = ({ schedules, users, shifts, onEdit, onDelete, onAdd, canManage }) => {
   const userMap = useMemo(() => new Map((users || []).map((u) => [u.id, u])), [users]);
   return (
     <div className="space-y-6">
       <div className="rounded-xl bg-white p-6 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-extrabold text-slate-900">Schedule Assignment</h3>
-          <button onClick={onAdd} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700">
+          <button disabled={!canManage} onClick={onAdd} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">
             <FiPlus className="h-4 w-4" /> Assign Schedule
           </button>
         </div>
@@ -153,8 +154,8 @@ const ScheduleAssignmentTab = ({ schedules, users, shifts, onEdit, onDelete, onA
                   <td className="max-w-[120px] truncate py-3 pr-4 text-xs text-slate-500" title={s.remarks || ""}>{s.remarks || "-"}</td>
                   <td className="py-3 pr-4 text-right">
                     <div className="flex justify-end gap-1">
-                      <button onClick={() => onEdit(s)} className="grid h-8 w-8 place-items-center rounded-md text-slate-500 hover:bg-slate-100"><FiEdit2 className="h-4 w-4" /></button>
-                      <button onClick={() => onDelete(s)} className="grid h-8 w-8 place-items-center rounded-md text-red-500 hover:bg-red-50"><FiTrash2 className="h-4 w-4" /></button>
+                      <button disabled={!canManage} onClick={() => onEdit(s)} className="grid h-8 w-8 place-items-center rounded-md text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"><FiEdit2 className="h-4 w-4" /></button>
+                      <button disabled={!canManage} onClick={() => onDelete(s)} className="grid h-8 w-8 place-items-center rounded-md text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"><FiTrash2 className="h-4 w-4" /></button>
                     </div>
                   </td>
                 </tr>
@@ -336,11 +337,12 @@ const DeleteConfirm = ({ label, onConfirm, onClose }) => (
 
 export default function ShiftPage() {
   const navigate = useNavigate();
+  const { role } = useAuth();
+  const canManage = ["line_manager", "department_head", "management_hr"].includes(role);
   const [activeTab, setActiveTab] = useState("setup");
   const [shifts, setShifts] = useState([]);
   const [schedules, setSchedules] = useState([]);
   const [users, setUsers] = useState([]);
-  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null); // { type: "shift-form" | "schedule-form" | "delete", data? }
   const [deptFilter, setDeptFilter] = useState("all");
@@ -365,16 +367,14 @@ export default function ShiftPage() {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [sRes, schRes, uRes, stRes] = await Promise.all([
+      const [sRes, schRes, uRes] = await Promise.all([
         api.get("/api/shifts"),
         api.get("/api/shifts/schedules"),
         api.get("/api/admin/users").catch(() => ({ data: [] })),
-        api.get("/api/shifts/stats"),
       ]);
       setShifts(sRes.data || []);
       setSchedules(schRes.data || []);
       setUsers(uRes.data || []);
-      setStats(stRes.data || null);
     } catch { /* ignore */ }
     setLoading(false);
   };
@@ -438,29 +438,8 @@ export default function ShiftPage() {
         sub_department: u?.sub_department,
       });
     });
-    return Array.from(map.values());
+    return Array.from(map.values()).filter((group) => group.type !== "unknown");
   }, [filteredSchedules, shiftTypeMap, userMap]);
-
-  const totalEmployeeShifts = useMemo(
-    () => employeesByShift.reduce((sum, s) => sum + s.employees.length, 0),
-    [employeesByShift],
-  );
-
-  const splitShiftEmployees = useMemo(
-    () => employeesByShiftType.find((s) => s.type === "split")?.employees?.length ?? 0,
-    [employeesByShiftType],
-  );
-
-  const WIDGETS = [
-    { label: "Total Active Shifts", value: stats?.total_active_shifts ?? 0, color: "bg-blue-500" },
-    { label: "Total Employees", value: totalEmployeeShifts, color: "bg-green-500" },
-    { label: "Split Shift Employees", value: splitShiftEmployees, color: "bg-purple-500" },
-    { label: "Upcoming Changes", value: "—", color: "bg-amber-500" },
-    { label: "Night Shift Employees", value: stats?.night_shift_count ?? 0, color: "bg-indigo-500" },
-    { label: "Shift Coverage Rate", value: "—%", color: "bg-teal-500" },
-    { label: "Attendance Compliance", value: "—%", color: "bg-rose-500" },
-    { label: "Schedule Conflicts", value: stats?.schedule_conflicts ?? 0, color: "bg-red-500" },
-  ];
 
   const handleSaveShift = async (form) => {
     const payload = {
@@ -516,17 +495,33 @@ export default function ShiftPage() {
         </div>
       </div>
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {WIDGETS.map((w) => (
-          <div key={w.label} className="rounded-xl bg-white p-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className={`grid h-10 w-10 place-items-center rounded-lg ${w.color} text-white`}>
-                <FiClock className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-2xl font-extrabold text-slate-900">{w.value}</p>
-                <p className="text-xs font-semibold text-slate-500">{w.label}</p>
-              </div>
+      {!canManage && (
+        <div className="mb-4 rounded-lg border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-700">
+          You can view shift data, but only HR and managers can add, edit, or delete shifts and schedules.
+        </div>
+      )}
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+        {employeesByShiftType.map(({ type, label, employees }) => (
+          <div key={type} className="rounded-xl bg-white p-5 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <h4 className="text-base font-extrabold text-slate-900">{label}</h4>
+              <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-blue-700">{employees.length}</span>
+            </div>
+            <div className="space-y-2 max-h-[260px] overflow-y-auto">
+              {employees.length === 0 ? (
+                <p className="text-sm text-slate-400">No employees</p>
+              ) : employees.map((emp) => (
+                <div key={emp.id} className="flex items-center gap-2 rounded-lg hover:bg-slate-50">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-200 text-xs font-bold text-slate-600">
+                    {emp.name?.[0] || "?"}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-slate-900">{emp.name}</p>
+                    <p className="truncate text-[11px] font-semibold text-slate-500">{emp.code}{emp.department ? ` · ${emp.department}` : ""}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         ))}
@@ -567,35 +562,6 @@ export default function ShiftPage() {
         ))}
       </div>
 
-      <div className="mb-4">
-        <h2 className="text-lg font-extrabold text-slate-900">Employees by Shift Type</h2>
-      </div>
-
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {employeesByShiftType.map(({ type, label, employees }) => (
-          <div key={type} className="rounded-xl bg-white p-5 shadow-sm">
-            <div className="mb-3 flex items-center justify-between">
-              <h4 className="text-base font-extrabold text-slate-900">{label}</h4>
-              <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-blue-700">{employees.length}</span>
-            </div>
-            <div className="space-y-2 max-h-[260px] overflow-y-auto">
-              {employees.length === 0 ? (
-                <p className="text-sm text-slate-400">No employees</p>
-              ) : employees.map((emp) => (
-                <div key={emp.id} className="flex items-center gap-2 rounded-lg hover:bg-slate-50">
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-200 text-xs font-bold text-slate-600">
-                    {emp.name?.[0] || "?"}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-slate-900">{emp.name}</p>
-                    <p className="truncate text-[11px] font-semibold text-slate-500">{emp.code}{emp.department ? ` · ${emp.department}` : ""}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
 
       <div className="mb-6 flex gap-1 rounded-xl bg-white p-1 shadow-sm">
         {TABS.map((tab) => (
@@ -618,16 +584,18 @@ export default function ShiftPage() {
               onEdit={(s) => setModal({ type: "shift-form", data: s })}
               onDelete={(s) => setModal({ type: "delete-shift", data: s })}
               onAdd={() => setModal({ type: "shift-form", data: null })}
+              canManage={canManage}
             />
           )}
           {activeTab === "assignment" && (
             <ScheduleAssignmentTab
-              schedules={schedules}
+              schedules={filteredSchedules}
               users={users}
               shifts={shifts}
               onEdit={(s) => setModal({ type: "schedule-form", data: s })}
               onDelete={(s) => setModal({ type: "delete-schedule", data: s })}
               onAdd={() => setModal({ type: "schedule-form", data: null })}
+              canManage={canManage}
             />
           )}
         </>

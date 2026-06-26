@@ -8,6 +8,7 @@ from sqlalchemy import (
     String,
     Text,
     Time,
+    Float,
     func,
 )
 from sqlalchemy.orm import relationship
@@ -46,3 +47,22 @@ class LeaveRequest(Base):
 
     user = relationship("User", back_populates="leave_requests", foreign_keys=[user_id])
     backup_user = relationship("User", foreign_keys=[backup_user_id])
+
+
+class LeaveEntitlement(Base):
+    __tablename__ = "leave_entitlements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    annual = Column(Float, default=18, nullable=False)
+    sick = Column(Float, default=6, nullable=False)
+    maternity = Column(Float, default=0, nullable=False)
+    paternity = Column(Float, default=0, nullable=False)
+    marriage = Column(Float, default=0, nullable=False)
+    compassionate = Column(Float, default=0, nullable=False)
+    unpaid = Column(Float, default=0, nullable=False)
+    special = Column(Float, default=0, nullable=False)
+    business = Column(Float, default=0, nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User", back_populates="leave_entitlement", foreign_keys=[user_id])

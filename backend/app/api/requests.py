@@ -16,6 +16,7 @@ from app.api.deps import (
     require_roles,
     scoped_user_ids,
 )
+from app.models.leave.models import LeaveEntitlement
 from app.models.request import Request
 from app.models.app_setting import AppSetting
 from app.models.ot.models import OtRequest
@@ -26,6 +27,8 @@ from app.schemas.request import (
     ApprovalFlowOut,
     CancelRequestIn,
     CreateRequestIn,
+    LeaveEntitlementIn,
+    LeaveEntitlementOut,
     RequestOut,
     UpdateRequestStatusIn,
 )
@@ -38,6 +41,17 @@ REJECTED = "rejected"
 SKIPPED = "skipped"
 APPROVAL_FLOW_SETTING_KEY = "request_approval_flow"
 DEFAULT_APPROVAL_FLOW = ["backup", "line_manager", "department_head", "management_hr"]
+DEFAULT_LEAVE_ENTITLEMENTS = {
+    "annual": 18,
+    "sick": 6,
+    "maternity": 0,
+    "paternity": 0,
+    "marriage": 0,
+    "compassionate": 0,
+    "unpaid": 0,
+    "special": 0,
+    "business": 0,
+}
 APPROVAL_STAGE_LABELS = {
     "backup": "Backup Person",
     "line_manager": "Line manager",
@@ -165,6 +179,32 @@ def _can_department_approve(actor: User, requester: User) -> bool:
     )
 
 
+def _entitlement_out(user_id: int, row: LeaveEntitlement | None) -> LeaveEntitlementOut:
+    values = DEFAULT_LEAVE_ENTITLEMENTS | (
+        {
+            "annual": row.annual,
+            "sick": row.sick,
+            "maternity": row.maternity,
+            "paternity": row.paternity,
+            "marriage": row.marriage,
+            "compassionate": row.compassionate,
+            "unpaid": row.unpaid,
+            "special": row.special,
+            "business": row.business,
+        }
+        if row
+        else {}
+    )
+    return LeaveEntitlementOut(user_id=user_id, **values)
+
+
+def _validate_entitlement_payload(payload: LeaveEntitlementIn) -> None:
+    for key in DEFAULT_LEAVE_ENTITLEMENTS:
+        value = getattr(payload, key)
+        if value < 0 or value > 365:
+            raise HTTPException(status_code=400, detail=f"{key} entitlement must be between 0 and 365")
+
+
 @router.get("/approval-flow", response_model=ApprovalFlowOut)
 def get_approval_flow(
     db: Session = Depends(get_db),
@@ -188,6 +228,59 @@ def update_approval_flow(
         db.add(AppSetting(key=APPROVAL_FLOW_SETTING_KEY, value=value))
     db.commit()
     return ApprovalFlowOut(stages=stages)
+
+
+@router.get("/leave-entitlements", response_model=list[LeaveEntitlementOut])
+def get_leave_entitlements(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    actor_role = normalize_role(user.role)
+    if actor_role in {LINE_MANAGER_ROLE, DEPARTMENT_HEAD_ROLE, MANAGEMENT_HR_ROLE}:
+        user_ids = scoped_user_ids(db, user, include_self=True)
+    else:
+        user_ids = [user.id]
+
+    rows = (
+        db.query(LeaveEntitlement)
+        .filter(LeaveEntitlement.user_id.in_(user_ids))
+        .all()
+    )
+    by_user_id = {row.user_id: row for row in rows}
+    return [_entitlement_out(user_id, by_user_id.get(user_id)) for user_id in user_ids]
+
+
+@router.put("/leave-entitlements/{user_id}", response_model=LeaveEntitlementOut)
+def update_leave_entitlement(
+    user_id: int,
+    payload: LeaveEntitlementIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(LINE_MANAGER_ROLE, DEPARTMENT_HEAD_ROLE, MANAGEMENT_HR_ROLE)),
+):
+    if payload.user_id != user_id:
+        raise HTTPException(status_code=400, detail="Payload user_id must match the URL")
+
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    actor_role = normalize_role(user.role)
+    if actor_role != MANAGEMENT_HR_ROLE:
+        ensure_user_in_scope(db, user, user_id)
+
+    _validate_entitlement_payload(payload)
+
+    row = db.query(LeaveEntitlement).filter(LeaveEntitlement.user_id == user_id).first()
+    if not row:
+        row = LeaveEntitlement(user_id=user_id)
+        db.add(row)
+
+    for key in DEFAULT_LEAVE_ENTITLEMENTS:
+        setattr(row, key, getattr(payload, key))
+
+    db.commit()
+    db.refresh(row)
+    return _entitlement_out(user_id, row)
 
 
 @router.post("/create", response_model=RequestOut)

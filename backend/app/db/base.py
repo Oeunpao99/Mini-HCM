@@ -15,7 +15,7 @@ from app.models.hris import (
     ShiftSchedule,
     TrainingRecord,
 )
-from app.models.leave.models import LeaveRequest
+from app.models.leave.models import LeaveEntitlement, LeaveRequest
 from app.models.location_alert import LocationAlert
 from app.models.ot.models import OtRequest
 from app.models.request import Request
@@ -33,6 +33,7 @@ __all__ = [
     "CompanyLocation",
     "Attendance",
     "LeaveRequest",
+    "LeaveEntitlement",
     "OtRequest",
     "Request",
     "SwapRequest",

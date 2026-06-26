@@ -32,6 +32,23 @@ class ApprovalFlowOut(BaseModel):
     stages: list[str]
 
 
+class LeaveEntitlementIn(BaseModel):
+    user_id: int
+    annual: float
+    sick: float
+    maternity: float
+    paternity: float
+    marriage: float
+    compassionate: float
+    unpaid: float
+    special: float
+    business: float
+
+
+class LeaveEntitlementOut(LeaveEntitlementIn):
+    pass
+
+
 class RequestOut(BaseModel):
     id: int
     user_id: int

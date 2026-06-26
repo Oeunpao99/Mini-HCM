@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 
 from app.db.session import Base
 
-from app.models.leave.models import LeaveRequest  # noqa: F401  needed for relationship string resolution
+from app.models.leave.models import LeaveEntitlement, LeaveRequest  # noqa: F401  needed for relationship string resolution
 from app.models.ot.models import OtRequest  # noqa: F401  needed for relationship string resolution
 
 
@@ -36,6 +36,7 @@ class User(Base):
 
     attendances = relationship("Attendance", back_populates="user", foreign_keys="Attendance.user_id")
     leave_requests = relationship("LeaveRequest", back_populates="user", foreign_keys="LeaveRequest.user_id")
+    leave_entitlement = relationship("LeaveEntitlement", back_populates="user", uselist=False)
     ot_requests = relationship("OtRequest", back_populates="user", foreign_keys="OtRequest.user_id")
     requests = relationship("Request", back_populates="user", foreign_keys="Request.user_id")
     manager = relationship("User", remote_side=[id], back_populates="direct_reports")
