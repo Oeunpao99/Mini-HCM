@@ -105,7 +105,7 @@ const leaveTypeColors = {
 const suggestedLeaveTabs = [
   {
     group: "Leave Request",
-    items: ["New Leave Request", "Leave Calendar", "Request History"],
+    items: ["Leave Calendar", "Request History"],
   },
   {
     group: "Leave Balance",
@@ -121,7 +121,7 @@ const suggestedLeaveTabs = [
   },
   {
     group: "Leave Reports",
-    items: ["Leave Summary Report", "Leave Balance Report", "Leave Utilization Report"],
+    items: ["Leave Summary Report", "Leave Balance Report", "Leave Utilization Report", "Monthly Attendance Report"],
   },
 ];
 const otDashboardTabs = ["Dashboard", "Overtime", "Reports"];
@@ -134,10 +134,10 @@ const approvalStageDefinitions = [
 const defaultApprovalFlow = approvalStageDefinitions.map((stage) => stage.key);
 
 const inputClass =
-  "h-14 w-full rounded-xl border border-slate-300 bg-[#f8f8f8] px-5 text-base font-medium text-slate-900 outline-none focus:border-emerald-700";
+  "h-10 w-full rounded-lg border border-slate-300 bg-[#f8f8f8] px-3 text-sm font-medium text-slate-900 outline-none focus:border-emerald-700";
 
 const textAreaClass =
-  "min-h-[112px] w-full rounded-xl border border-slate-300 bg-[#f8f8f8] px-5 py-4 text-base font-medium text-slate-900 outline-none focus:border-emerald-700";
+  "min-h-[72px] w-full rounded-lg border border-slate-300 bg-[#f8f8f8] px-3 py-2 text-sm font-medium text-slate-900 outline-none focus:border-emerald-700";
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
 
@@ -330,11 +330,11 @@ const LeaveStatCard = ({ label, value, helper, icon: Icon, tone }) => (
 
 const FieldShell = ({ label, required, className = "", children }) => (
   <label className={`block ${className}`}>
-    <span className="text-base font-medium text-black">
+    <span className="text-xs font-bold text-black">
       {required ? "* " : ""}
       {label}
     </span>
-    <div className="mt-2">{children}</div>
+    <div className="mt-1">{children}</div>
   </label>
 );
 
@@ -363,7 +363,7 @@ const DateField = ({ value, onChange, required }) => (
       onChange={(event) => onChange(event.target.value)}
       required={required}
     />
-    <FiCalendar className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-emerald-800" />
+    <FiCalendar className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-800" />
   </div>
 );
 
@@ -376,13 +376,13 @@ const TimeField = ({ value, onChange, required }) => (
       onChange={(event) => onChange(event.target.value)}
       required={required}
     />
-    <FiClock className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-emerald-800" />
+    <FiClock className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-800" />
   </div>
 );
 
 const AttachmentField = ({ attachment, onChange, label = "Attachment" }) => (
   <FieldShell label={label}>
-    <label className="grid h-14 cursor-pointer place-items-center rounded-xl border border-emerald-800 bg-white px-4 text-center text-base font-medium text-black hover:bg-emerald-50">
+    <label className="grid h-10 cursor-pointer place-items-center rounded-lg border border-emerald-800 bg-white px-3 text-center text-sm font-medium text-black hover:bg-emerald-50">
       {attachment ? attachment.name : "Attach File"}
       <input
         type="file"
@@ -419,23 +419,23 @@ const BackupUserField = ({
   });
 
   return (
-    <div className="mt-5">
-      <h3 className="text-lg font-extrabold text-black">Back Up User</h3>
-      <div className="relative mt-3">
+    <div className="mt-3 rounded-lg border border-slate-200 p-3">
+      <h3 className="mb-2 text-sm font-extrabold text-black">Back Up User</h3>
+      <div className="relative">
         <input
           className={`${inputClass} pr-12`}
           value={backupSearch}
           onChange={(event) => setBackupSearch(event.target.value)}
           placeholder="Search User"
         />
-        <FiSearch className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+        <FiSearch className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
       </div>
-      <p className="mt-3 text-sm font-medium text-black">
+      <p className="mt-1 text-xs font-medium text-black">
         Minimum 4 characters required
       </p>
 
       {(backupSearch.length >= 4 || selectedBackup) && (
-        <div className="mt-2 max-h-44 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+        <div className="mt-2 max-h-44 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
           {filteredBackupOptions.map((user) => (
             <button
               key={user.id}
@@ -444,7 +444,7 @@ const BackupUserField = ({
                 setSelectedBackupId(String(user.id));
                 setBackupSearch(`${user.name} (${user.emp_code})`);
               }}
-              className={`block w-full px-4 py-3 text-left text-sm font-semibold hover:bg-slate-50 ${
+              className={`block w-full px-3 py-2 text-left text-xs font-semibold hover:bg-slate-50 ${
                 String(selectedBackupId) === String(user.id)
                   ? "bg-emerald-50 text-emerald-800"
                   : "text-slate-700"
@@ -733,7 +733,16 @@ const RequestsPage = () => {
     });
   }, [leaveSearch, statusFilter, deptFilter, unitFilter, managementRequests, userById]);
 
+  const filteredUsers = useMemo(() => {
+    return users.filter((user) => {
+      const matchesDept = deptFilter === "all" || user.department === deptFilter;
+      const matchesUnit = unitFilter === "all" || user.sub_department === unitFilter;
+      return matchesDept && matchesUnit;
+    });
+  }, [users, deptFilter, unitFilter]);
+
   const managementStats = useMemo(() => {
+    const filteredUserCount = Math.max(filteredUsers.length, 1);
     const [year, month] = leaveMonth.split("-").map(Number);
     const scope = requestType === "ot"
       ? filteredManagementRequests.filter((r) => r.type === "ot")
@@ -777,15 +786,15 @@ const RequestsPage = () => {
     const usedBusiness = leaveRequests
       .filter((request) => request.status === "approved" && String(request.leave_type || "").includes("business"))
       .reduce((sum, request) => sum + getRequestDays(request), 0);
-    const totalAnnual = Math.max(users.length, 1) * ANNUAL_LEAVE;
-    const totalSick = Math.max(users.length, 1) * SICK_LEAVE;
-    const totalMaternity = Math.max(users.length, 1) * MATERNITY_LEAVE;
-    const totalPaternity = Math.max(users.length, 1) * PATERNITY_LEAVE;
-    const totalMarriage = Math.max(users.length, 1) * MARRIAGE_LEAVE;
-    const totalCompassionate = Math.max(users.length, 1) * COMPASSIONATE_LEAVE;
-    const totalUnpaid = Math.max(users.length, 1) * UNPAID_LEAVE;
-    const totalSpecial = Math.max(users.length, 1) * SPECIAL_LEAVE;
-    const totalBusiness = Math.max(users.length, 1) * BUSINESS_LEAVE;
+    const totalAnnual = filteredUserCount * ANNUAL_LEAVE;
+    const totalSick = filteredUserCount * SICK_LEAVE;
+    const totalMaternity = filteredUserCount * MATERNITY_LEAVE;
+    const totalPaternity = filteredUserCount * PATERNITY_LEAVE;
+    const totalMarriage = filteredUserCount * MARRIAGE_LEAVE;
+    const totalCompassionate = filteredUserCount * COMPASSIONATE_LEAVE;
+    const totalUnpaid = filteredUserCount * UNPAID_LEAVE;
+    const totalSpecial = filteredUserCount * SPECIAL_LEAVE;
+    const totalBusiness = filteredUserCount * BUSINESS_LEAVE;
     const balanceData = [
       { name: "Annual Leave", value: Math.max(0, totalAnnual - usedAnnual), color: leaveTypeColors.annual },
       { name: "Sick Leave", value: Math.max(0, totalSick - usedSick), color: leaveTypeColors.sick },
@@ -1166,9 +1175,9 @@ const RequestsPage = () => {
 
   const renderLeaveForm = () => (
     <>
-      <section className="rounded-lg border border-slate-200 p-4">
-        <h3 className="mb-4 text-lg font-extrabold text-black">Employee Information</h3>
-        <div className="grid gap-4 md:grid-cols-3">
+      <section className="rounded-lg border border-slate-200 p-3">
+        <h3 className="mb-3 text-sm font-extrabold text-black">Employee Information</h3>
+        <div className="grid gap-3 md:grid-cols-3">
           <FieldShell label="Employee ID" required>
             <ReadOnlyField value={formUser.emp_code} placeholder="Employee reference" />
           </FieldShell>
@@ -1181,9 +1190,9 @@ const RequestsPage = () => {
         </div>
       </section>
 
-      <section className="mt-5 rounded-lg border border-slate-200 p-4">
-        <h3 className="mb-4 text-lg font-extrabold text-black">Leave Information</h3>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+      <section className="mt-3 rounded-lg border border-slate-200 p-3">
+        <h3 className="mb-3 text-sm font-extrabold text-black">Leave Information</h3>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-3">
           <FieldShell label="Leave Request No." required>
             <ReadOnlyField value={nextLeaveRequestNo} placeholder="System-generated request number" />
           </FieldShell>
@@ -1219,13 +1228,13 @@ const RequestsPage = () => {
             <ReadOnlyField value={leaveTotalDays || ""} placeholder="Calculated leave days" />
           </FieldShell>
           <FieldShell label="Half Day">
-            <label className="flex h-14 items-center justify-between rounded-xl border border-slate-300 bg-[#f8f8f8] px-5 text-base font-medium text-slate-900">
+            <label className="flex h-10 items-center justify-between rounded-lg border border-slate-300 bg-[#f8f8f8] px-3 text-sm font-medium text-slate-900">
               <span>{form.half_day ? "Yes" : "No"}</span>
               <input
                 type="checkbox"
                 checked={form.half_day}
                 onChange={(event) => updateForm({ half_day: event.target.checked })}
-                className="h-5 w-5 accent-emerald-800"
+                className="h-4 w-4 accent-emerald-800"
               />
             </label>
           </FieldShell>
@@ -1259,9 +1268,9 @@ const RequestsPage = () => {
         </div>
       </section>
 
-      <section className="mt-5 rounded-lg border border-slate-200 p-4">
-        <h3 className="mb-4 text-lg font-extrabold text-black">Leave Balance</h3>
-        <div className="grid gap-4 md:grid-cols-3">
+      <section className="mt-3 rounded-lg border border-slate-200 p-3">
+        <h3 className="mb-3 text-sm font-extrabold text-black">Leave Balance</h3>
+        <div className="grid gap-3 md:grid-cols-3">
           <FieldShell label="Leave Entitlement">
             <ReadOnlyField value={`${formLeaveBalance.entitlement} days`} placeholder="Annual entitlement" />
           </FieldShell>
@@ -1274,8 +1283,8 @@ const RequestsPage = () => {
         </div>
       </section>
 
-      <section className="mt-5 rounded-lg border border-slate-200 p-4">
-        <h3 className="mb-4 text-lg font-extrabold text-black">Attachment</h3>
+      <section className="mt-3 rounded-lg border border-slate-200 p-3">
+        <h3 className="mb-3 text-sm font-extrabold text-black">Attachment</h3>
         <AttachmentField
           attachment={attachment}
           onChange={setAttachment}
@@ -1291,8 +1300,8 @@ const RequestsPage = () => {
         setSelectedBackupId={(value) => updateForm({ backup_user_id: value })}
       />
 
-      <section className="mt-5 rounded-lg border border-slate-200 p-4">
-        <h3 className="mb-4 text-lg font-extrabold text-black">Remarks</h3>
+      <section className="mt-3 rounded-lg border border-slate-200 p-3">
+        <h3 className="mb-3 text-sm font-extrabold text-black">Remarks</h3>
         <FieldShell label="Remarks">
           <textarea
             className={textAreaClass}
@@ -1307,10 +1316,10 @@ const RequestsPage = () => {
 
   const renderPermissionForm = () => (
     <>
-      <h2 className="mb-4 text-xl font-extrabold text-black">
+      <h2 className="mb-3 text-base font-extrabold text-black">
         Permission Form
       </h2>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-3">
         <FieldShell label="Request Date" required>
           <DateField
             value={form.permission_date}
@@ -1357,10 +1366,10 @@ const RequestsPage = () => {
 
   const renderFlexibleForm = () => (
     <>
-      <h2 className="mb-4 text-xl font-extrabold text-black">
+      <h2 className="mb-3 text-base font-extrabold text-black">
         Flexible Request
       </h2>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-3">
         <FieldShell label="Request Type" required>
           <SelectField
             value={form.flexible_request_type}
@@ -1590,8 +1599,8 @@ const RequestsPage = () => {
 
   const renderLateForm = () => (
     <>
-      <h2 className="mb-4 text-xl font-extrabold text-black">Late Arrival Form</h2>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+      <h2 className="mb-3 text-base font-extrabold text-black">Late Arrival Form</h2>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-3">
         <FieldShell label="Date" required>
           <input type="date" value={form.start_date} onChange={(event) => setForm((previous) => ({ ...previous, start_date: event.target.value }))} className={inputClass} />
         </FieldShell>
@@ -1607,8 +1616,8 @@ const RequestsPage = () => {
           <input type="number" min="1" value={form.permission_duration} onChange={(event) => setForm((previous) => ({ ...previous, permission_duration: event.target.value }))} className={inputClass} placeholder="Minutes late" />
         </FieldShell>
       </div>
-      <FieldShell label="Reason" required className="mt-4">
-        <textarea value={form.reason} onChange={(event) => setForm((previous) => ({ ...previous, reason: event.target.value }))} className={inputClass} rows={3} placeholder="Reason for being late..." />
+      <FieldShell label="Reason" required className="mt-3">
+        <textarea value={form.reason} onChange={(event) => setForm((previous) => ({ ...previous, reason: event.target.value }))} className={inputClass} rows={2} placeholder="Reason for being late..." />
       </FieldShell>
     </>
   );
@@ -1690,12 +1699,6 @@ const RequestsPage = () => {
         actorRole={role}
         currentUserId={currentUser?.id}
         approvalFlow={approvalFlow}
-        deptFilter={deptFilter}
-        setDeptFilter={setDeptFilter}
-        departmentOptions={departmentOptions}
-        unitFilter={unitFilter}
-        setUnitFilter={setUnitFilter}
-        unitOptions={unitOptions}
       />
     );
 
@@ -1703,12 +1706,7 @@ const RequestsPage = () => {
       <>
       <section className="min-h-[calc(100vh-4rem)] bg-[#f6f8fd] px-4 py-6 md:px-6">
         <div className="mx-auto max-w-[1600px] space-y-4">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-3xl font-extrabold text-[#11164a]">{requestType ? requestListTitles[requestType] : "Request Management"}</h1>
-              <p className="mt-1 text-sm font-semibold text-slate-500">Home &gt; Request Management &gt; {requestType ? requestListTitles[requestType] : "Dashboard"}</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-3">
               <button type="button" onClick={openForm} className="inline-flex h-11 items-center gap-2 rounded-md bg-[#5b21e8] px-4 text-sm font-extrabold text-white shadow-lg shadow-violet-700/20">
                 <FiPlus className="h-4 w-4" aria-hidden />
                 New Request
@@ -1718,7 +1716,6 @@ const RequestsPage = () => {
                 <input type="month" value={leaveMonth} onChange={(event) => setLeaveMonth(event.target.value)} className="bg-transparent outline-none" />
               </label>
             </div>
-          </div>
 
           {actionFeedback && (
             <div className={`fixed right-6 top-20 z-50 flex max-w-sm items-center gap-3 rounded-lg border bg-white px-4 py-3 text-sm font-extrabold shadow-2xl animate-leave-toast ${actionFeedback.type === "success" ? "border-emerald-100 text-emerald-700" : "border-red-100 text-red-700"}`}>
@@ -1771,16 +1768,16 @@ const RequestsPage = () => {
           )}
 
           {showForm && (
-            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-extrabold text-[#11164a]">{requestTitles[form.type]}</h2>
+            <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-base font-extrabold text-[#11164a]">{requestTitles[form.type]}</h2>
                 <button type="button" onClick={() => setShowForm(false)} className="grid h-9 w-9 place-items-center rounded-md text-slate-600 hover:bg-slate-100">
                   <FiX className="h-5 w-5" aria-hidden />
                 </button>
               </div>
               <form onSubmit={create}>
                 {renderActiveForm()}
-                <button className="mt-5 h-12 rounded-lg bg-[#5b21e8] px-6 text-sm font-extrabold text-white">Submit Request</button>
+                <button className="mt-3 h-10 rounded-lg bg-[#5b21e8] px-4 text-sm font-extrabold text-white">Submit Request</button>
               </form>
             </section>
           )}
@@ -1798,6 +1795,25 @@ const RequestsPage = () => {
                 </div>
               )}
 
+              <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+                <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
+                  <FiFilter className="h-4 w-4" />
+                  <span>Filter:</span>
+                </div>
+                <select value={deptFilter} onChange={(event) => setDeptFilter(event.target.value)} className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none">
+                  <option value="all">All Departments</option>
+                  {departmentOptions.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
+                </select>
+                <select value={unitFilter} onChange={(event) => setUnitFilter(event.target.value)} className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none">
+                  <option value="all">All Units</option>
+                  {unitOptions.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+                </select>
+                <label className="flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600">
+                  <FiSearch className="h-4 w-4 text-slate-400" aria-hidden />
+                  <input value={leaveSearch} onChange={(event) => setLeaveSearch(event.target.value)} className="w-40 bg-transparent outline-none placeholder:text-slate-400" placeholder="Search staff name..." />
+                </label>
+              </div>
+
               {requestType === "ot" ? (
                 <div className="flex gap-8 overflow-x-auto border-b border-slate-200 bg-white px-4">
                   {dashboardTabs.map((tab) => (
@@ -1807,27 +1823,25 @@ const RequestsPage = () => {
                   ))}
                 </div>
               ) : (
-                <div className="overflow-x-auto border border-slate-200 bg-white p-3 shadow-sm">
-                  <div className="flex min-w-max gap-3">
-                    {suggestedLeaveTabs.map((group) => (
-                      <div key={group.group} className="min-w-[220px] border-r border-slate-100 pr-3 last:border-r-0">
-                        <p className="px-2 pb-2 text-[11px] font-extrabold uppercase tracking-wide text-slate-400">{group.group}</p>
-                        <div className="grid gap-1">
-                          {group.items.map((tab) => (
-                            <button
-                              key={tab}
-                              type="button"
-                              onClick={tab === "New Leave Request" ? openLeaveRequestForm : () => setLeaveTab(tab)}
-                              className={`h-10 rounded-md px-3 text-left text-sm font-extrabold ${
-                                leaveTab === tab
-                                  ? "bg-[#5b21e8] text-white"
-                                  : "text-slate-700 hover:bg-slate-50 hover:text-[#5b21e8]"
-                              }`}
-                            >
-                              {tab}
-                            </button>
-                          ))}
-                        </div>
+                <div className="overflow-x-auto border border-slate-200 bg-white shadow-sm">
+                  <div className="flex items-center gap-2 px-3 py-2 min-w-max">
+                    {suggestedLeaveTabs.map((group, gi) => (
+                      <div key={group.group} className="flex items-center gap-1">
+                        {gi > 0 && <div className="mx-1 h-5 w-px bg-slate-200" />}
+                        {group.items.map((tab) => (
+                          <button
+                            key={tab}
+                            type="button"
+                            onClick={tab === "New Leave Request" ? openLeaveRequestForm : () => setLeaveTab(tab)}
+                            className={`h-7 shrink-0 rounded-md px-2.5 text-[11px] font-extrabold ${
+                              leaveTab === tab
+                                ? "bg-[#166432] text-white shadow-sm"
+                                : "text-slate-600 hover:bg-slate-100 hover:text-[#166432]"
+                            }`}
+                          >
+                            {tab}
+                          </button>
+                        ))}
                       </div>
                     ))}
                   </div>
@@ -1889,26 +1903,20 @@ const RequestsPage = () => {
                     </div>
 
                     <div className="flex flex-col gap-4">
-                      <LeaveRequestsTable
-                        rows={rowsForTab("Dashboard")}
-                        search={leaveSearch}
-                        setSearch={setLeaveSearch}
-                        onOpen={openRequest}
-                        onUpdate={updateRequest}
-                        onMarkPaid={markAsPaid}
-                        title="OT Requests"
-                        recentlyUpdatedId={recentlyUpdatedId}
-                        actionLoadingId={actionLoadingId}
-                        actorRole={role}
-                        currentUserId={currentUser?.id}
-                        approvalFlow={approvalFlow}
-                        deptFilter={deptFilter}
-                        setDeptFilter={setDeptFilter}
-                        departmentOptions={departmentOptions}
-                        unitFilter={unitFilter}
-                        setUnitFilter={setUnitFilter}
-                        unitOptions={unitOptions}
-                      />
+                        <LeaveRequestsTable
+                          rows={rowsForTab("Dashboard")}
+                          search={leaveSearch}
+                          setSearch={setLeaveSearch}
+                          onOpen={openRequest}
+                          onUpdate={updateRequest}
+                          onMarkPaid={markAsPaid}
+                          title="OT Requests"
+                          recentlyUpdatedId={recentlyUpdatedId}
+                          actionLoadingId={actionLoadingId}
+                          actorRole={role}
+                          currentUserId={currentUser?.id}
+                          approvalFlow={approvalFlow}
+                        />
                     </div>
                   </>
                 ) : (
@@ -1985,12 +1993,6 @@ const RequestsPage = () => {
                         actorRole={role}
                         currentUserId={currentUser?.id}
                         approvalFlow={approvalFlow}
-                        deptFilter={deptFilter}
-                        setDeptFilter={setDeptFilter}
-                        departmentOptions={departmentOptions}
-                        unitFilter={unitFilter}
-                        setUnitFilter={setUnitFilter}
-                        unitOptions={unitOptions}
                       />
                     </div>
                   </>
@@ -2013,7 +2015,7 @@ const RequestsPage = () => {
                   balanceData={managementStats.balanceData}
                   mode={leaveTab}
                   totalBalance={managementStats.totalBalance}
-                  usersCount={users.length}
+                  usersCount={filteredUsers.length}
                 />
               )}
 
@@ -2025,7 +2027,14 @@ const RequestsPage = () => {
                 />
               )}
 
-              {leaveTab.includes("Report") && (
+              {leaveTab === "Monthly Attendance Report" ? (
+                <MonthlyAttendanceReport
+                  users={users}
+                  userById={userById}
+                  leaveRequests={items.filter((r) => r.type === "leave")}
+                  month={leaveMonth}
+                />
+              ) : leaveTab.includes("Report") && (
                 <LeaveReportPanel
                   rows={rowsForTab(leaveTab)}
                   tab={leaveTab}
@@ -2145,8 +2154,8 @@ const RequestsPage = () => {
           {showForm && (
             <form onSubmit={create} className="pb-8">
               {renderActiveForm()}
-              <div className="my-5 h-px bg-slate-200" />
-              <button className="h-14 w-full rounded-xl bg-emerald-800 text-lg font-extrabold text-white">
+              <div className="my-3 h-px bg-slate-200" />
+              <button className="h-10 w-full rounded-lg bg-emerald-800 text-sm font-extrabold text-white">
                 Submit
               </button>
               {status && (
@@ -2448,41 +2457,31 @@ const LeaveReportPanel = ({ rows, tab, stats, onExport }) => {
   );
 };
 
-const LeaveRequestsTable = ({ rows, search, setSearch, onOpen, onUpdate, onMarkPaid, title, recentlyUpdatedId, actionLoadingId, actorRole, currentUserId, approvalFlow, deptFilter, setDeptFilter, departmentOptions, unitFilter, setUnitFilter, unitOptions }) => (
+const LeaveRequestsTable = ({ rows, search, setSearch, onOpen, onUpdate, onMarkPaid, title, recentlyUpdatedId, actionLoadingId, actorRole, currentUserId, approvalFlow }) => (
   <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-    <div className="flex flex-col gap-3 border-b border-slate-100 p-4 md:flex-row md:items-center md:justify-between">
-      <h2 className="text-lg font-extrabold text-[#11164a]">{title}</h2>
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="flex h-10 w-full items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 md:w-48">
-          <FiSearch className="h-4 w-4 text-slate-400" aria-hidden />
-          <input value={search} onChange={(event) => setSearch(event.target.value)} className="w-full bg-transparent outline-none placeholder:text-slate-400" placeholder="Search employee..." />
-        </label>
-        <select value={deptFilter} onChange={(event) => setDeptFilter(event.target.value)} className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none">
-          <option value="all">All Departments</option>
-          {departmentOptions.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
-        </select>
-        <select value={unitFilter} onChange={(event) => setUnitFilter(event.target.value)} className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none">
-          <option value="all">All Units</option>
-          {unitOptions.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
-        </select>
-      </div>
+    <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
+      <h2 className="text-sm font-extrabold text-[#11164a]">{title}</h2>
+      <label className="flex h-8 items-center gap-2 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-600">
+        <FiSearch className="h-3 w-3 text-slate-400" aria-hidden />
+        <input value={search} onChange={(event) => setSearch(event.target.value)} className="w-32 bg-transparent outline-none placeholder:text-slate-400" placeholder="Search..." />
+      </label>
     </div>
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[1120px] text-left text-sm">
-        <thead className="bg-slate-50 text-xs font-extrabold uppercase text-[#11164a]">
+      <table className="w-full min-w-[1000px] text-left text-xs">
+        <thead className="bg-slate-50 text-[10px] font-extrabold uppercase text-[#11164a]">
           <tr>
-            <th className="px-5 py-4 w-12">#</th>
-            <th className="px-5 py-4">Employee ID</th>
-            <th className="px-5 py-4">Employee</th>
-            <th className="px-5 py-4">Request Type</th>
-            <th className="px-5 py-4">Details</th>
-            <th className="px-5 py-4">Date / Time</th>
-            <th className="px-5 py-4">Unit</th>
-            <th className="px-5 py-4">Reason</th>
-            <th className="px-5 py-4">Status</th>
-            <th className="px-5 py-4">Pending On</th>
-            <th className="px-5 py-4">Applied On</th>
-            <th className="px-5 py-4 text-right">View</th>
+            <th className="px-3 py-2 w-8">#</th>
+            <th className="px-3 py-2">EID</th>
+            <th className="px-3 py-2">Employee</th>
+            <th className="px-3 py-2">Type</th>
+            <th className="px-3 py-2">Details</th>
+            <th className="px-3 py-2">Date</th>
+            <th className="px-3 py-2">Unit</th>
+            <th className="px-3 py-2">Reason</th>
+            <th className="px-3 py-2">Status</th>
+            <th className="px-3 py-2">Pending On</th>
+            <th className="px-3 py-2">Applied</th>
+            <th className="px-3 py-2 text-right">View</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -2492,39 +2491,39 @@ const LeaveRequestsTable = ({ rows, search, setSearch, onOpen, onUpdate, onMarkP
             const isWaitingOnSomeoneElse = request.status === "pending" && pendingStage && !canApprove;
             return (
             <tr key={request.id} className={`${recentlyUpdatedId === request.id ? "animate-leave-row bg-emerald-50/80" : "hover:bg-slate-50/70"}`}>
-              <td className="px-5 py-4 text-center font-bold text-[#11164a]">{index + 1}</td>
-              <td className="px-5 py-4 font-semibold text-[#11164a]">{user?.emp_code || "-"}</td>
-              <td className="px-5 py-4">
-                <div className="flex items-center gap-3">
-                  <span className="grid h-10 w-10 place-items-center rounded-full bg-slate-200 text-xs font-extrabold text-[#11164a]">
+              <td className="px-3 py-2 text-center font-bold text-[#11164a]">{index + 1}</td>
+              <td className="px-3 py-2 font-semibold text-[#11164a]">{user?.emp_code || "-"}</td>
+              <td className="px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-slate-200 text-[10px] font-extrabold text-[#11164a]">
                     {String(user?.name || "U").split(" ").map((part) => part[0]).join("").slice(0, 2)}
                   </span>
-                  <div>
-                    <p className="font-extrabold text-[#11164a]">{user?.name || `Employee #${request.user_id}`}</p>
-                    <p className="text-xs font-semibold text-slate-500">{user?.department || "-"}</p>
+                  <div className="min-w-0">
+                    <p className="truncate font-extrabold text-[#11164a]">{user?.name || `#${request.user_id}`}</p>
+                    <p className="text-[10px] font-semibold text-slate-500">{user?.department || "-"}</p>
                   </div>
                 </div>
               </td>
-              <td className="px-5 py-4">
-                <span className={`rounded-md px-3 py-1.5 text-xs font-extrabold ${requestTypeTone(request.type)}`}>{requestTypeLabel(request.type)}</span>
+              <td className="px-3 py-2">
+                <span className={`rounded px-2 py-1 text-[10px] font-extrabold ${requestTypeTone(request.type)}`}>{requestTypeLabel(request.type)}</span>
               </td>
-              <td className="px-5 py-4 font-semibold text-[#11164a]">{detail}</td>
-              <td className="px-5 py-4 font-semibold text-[#11164a]">{range}</td>
-              <td className="px-5 py-4 font-semibold text-[#11164a]">{unit}</td>
-              <td className="px-5 py-4 font-semibold text-[#11164a]">{reason}</td>
-              <td className="px-5 py-4">
-                <span className={`rounded-md px-3 py-1.5 text-xs font-extrabold ${leaveStatusTone(request.status)}`}>{statusDisplay(request.status)}</span>
+              <td className="px-3 py-2 font-semibold text-[#11164a]">{detail}</td>
+              <td className="px-3 py-2 font-semibold text-[#11164a]">{range}</td>
+              <td className="px-3 py-2 font-semibold text-[#11164a]">{unit}</td>
+              <td className="px-3 py-2 max-w-[120px] truncate font-semibold text-[#11164a]">{reason}</td>
+              <td className="px-3 py-2">
+                <span className={`rounded px-2 py-1 text-[10px] font-extrabold ${leaveStatusTone(request.status)}`}>{statusDisplay(request.status)}</span>
               </td>
-              <td className="px-5 py-4">
-                <span className={`rounded-md px-3 py-1.5 text-xs font-extrabold ${pendingStage ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-500"}`}>
+              <td className="px-3 py-2">
+                <span className={`rounded px-2 py-1 text-[10px] font-extrabold ${pendingStage ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-400"}`}>
                   {pendingStage?.label || "-"}
                 </span>
               </td>
-              <td className="px-5 py-4 font-semibold text-slate-600">{formatDate(request.date)}</td>
-              <td className="px-5 py-4">
-                <div className="flex justify-end gap-2">
-                  <button type="button" onClick={() => onOpen(request)} className="grid h-9 w-9 place-items-center rounded-md text-[#11164a] hover:bg-slate-100" title="View request">
-                    <FiEye className="h-4 w-4" aria-hidden />
+              <td className="px-3 py-2 font-semibold text-slate-600">{formatDate(request.date)}</td>
+              <td className="px-3 py-2">
+                <div className="flex justify-end gap-1">
+                  <button type="button" onClick={() => onOpen(request)} className="grid h-7 w-7 place-items-center rounded-md text-[#11164a] hover:bg-slate-100" title="View">
+                    <FiEye className="h-3.5 w-3.5" aria-hidden />
                   </button>
                   {request.status === "pending" && (
                     <>
@@ -2556,7 +2555,7 @@ const LeaveRequestsTable = ({ rows, search, setSearch, onOpen, onUpdate, onMarkP
                       type="button"
                       onClick={() => onMarkPaid?.(request.id)}
                       disabled={actionLoadingId === request.id}
-                      className="rounded-md bg-blue-100 px-3 py-1.5 text-xs font-extrabold text-blue-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                      className="rounded bg-blue-100 px-2 py-1 text-[10px] font-extrabold text-blue-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                     >
                       {actionLoadingId === request.id ? "Saving..." : "Mark as Paid"}
                     </button>
@@ -2567,20 +2566,147 @@ const LeaveRequestsTable = ({ rows, search, setSearch, onOpen, onUpdate, onMarkP
           );
           })}
           {rows.length === 0 && (
-            <tr><td colSpan={12} className="px-5 py-10 text-center text-sm font-bold text-slate-400">No requests found.</td></tr>
+            <tr><td colSpan={12} className="px-3 py-6 text-center text-xs font-bold text-slate-400">No requests found.</td></tr>
           )}
         </tbody>
       </table>
     </div>
-    <div className="flex items-center justify-between border-t border-slate-100 px-5 py-4">
-      <p className="text-sm font-semibold text-[#11164a]">Showing 1 to {Math.min(8, rows.length)} of {rows.length} requests</p>
-      <div className="flex items-center gap-2">
+    <div className="flex items-center justify-between border-t border-slate-100 px-3 py-2">
+      <p className="text-xs font-semibold text-[#11164a]">1-{Math.min(8, rows.length)} of {rows.length}</p>
+      <div className="flex items-center gap-1">
         {[1, 2, 3].map((page) => (
-          <button key={page} type="button" className={`h-8 min-w-8 rounded-md border px-2 text-sm font-bold ${page === 1 ? "border-[#5b21e8] bg-[#5b21e8] text-white" : "border-slate-200 text-slate-700"}`}>{page}</button>
+          <button key={page} type="button" className={`h-6 min-w-6 rounded border px-1.5 text-[11px] font-bold ${page === 1 ? "border-[#5b21e8] bg-[#5b21e8] text-white" : "border-slate-200 text-slate-700"}`}>{page}</button>
         ))}
       </div>
     </div>
   </section>
 );
+
+const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+const leaveCodeMap = {
+  annual: "AL", sick: "SL", maternity: "ML", paternity: "PL",
+  marriage: "MRL", compassionate: "CL", unpaid: "UPL",
+  special: "SPL", business: "BL",
+};
+
+const halfLeaveCodeMap = {
+  annual: "HAL", sick: "HSL", maternity: "HML", paternity: "HPL",
+  marriage: "HMRL", compassionate: "HCL", unpaid: "HUPL",
+  special: "HSPL", business: "HBL",
+};
+
+const MonthlyAttendanceReport = ({ users, userById, leaveRequests, month }) => {
+  const [year, monthNum] = month.split("-").map(Number);
+  const daysInMonth = new Date(year, monthNum, 0).getDate();
+  const firstDay = new Date(year, monthNum - 1, 1).getDay();
+
+  const days = Array.from({ length: daysInMonth }, (_, i) => ({
+    date: i + 1,
+    dayName: dayNames[(firstDay + i) % 7],
+    key: `${year}-${String(monthNum).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`,
+  }));
+
+  const getLeaveForEmployee = (userId, dateKey) => {
+    return leaveRequests.find((r) =>
+      r.user_id === userId &&
+      r.status === "approved" &&
+      dateKey >= r.date &&
+      dateKey <= (r.reason?.includes("End date") ?
+        r.reason.match(/End date[:\s]*(\d{4}-\d{2}-\d{2})/)?.[1] || r.date : r.date)
+    );
+  };
+
+  const countLeaveType = (userId, typeKey) => {
+    return leaveRequests.filter((r) =>
+      r.user_id === userId &&
+      r.status === "approved" &&
+      String(r.leave_type || "annual").toLowerCase().includes(typeKey)
+    ).reduce((sum, r) => sum + getRequestDays(r), 0);
+  };
+
+  const sortedUsers = [...users].sort((a, b) => (a.department || "").localeCompare(b.department || ""));
+
+  return (
+    <section className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="min-w-[1800px] p-4">
+        <h2 className="mb-4 text-lg font-extrabold text-[#11164a]">
+          Monthly Attendance Report - {monthLabel(month)}
+        </h2>
+        <table className="w-full text-left text-xs">
+          <thead>
+            <tr className="bg-slate-50">
+              <th className="border border-slate-200 px-2 py-1.5 font-extrabold text-[#11164a]" rowSpan={2}>#</th>
+              <th className="border border-slate-200 px-2 py-1.5 font-extrabold text-[#11164a]" rowSpan={2}>EID</th>
+              <th className="border border-slate-200 px-2 py-1.5 font-extrabold text-[#11164a]" rowSpan={2}>Employee Name</th>
+              <th className="border border-slate-200 px-2 py-1.5 font-extrabold text-[#11164a]" rowSpan={2}>Department</th>
+              <th className="border border-slate-200 px-2 py-1.5 font-extrabold text-[#11164a]" rowSpan={2}>Position</th>
+              <th className="border border-slate-200 px-2 py-1.5 font-extrabold text-[#11164a]" colSpan={daysInMonth}>Daily Attendance</th>
+              <th className="border border-slate-200 px-2 py-1.5 font-extrabold text-[#11164a]" rowSpan={2}>Actual Working Days</th>
+              <th className="border border-slate-200 px-2 py-1.5 font-extrabold text-[#11164a]" colSpan={11}>Leave Details</th>
+              <th className="border border-slate-200 px-2 py-1.5 font-extrabold text-[#11164a]" rowSpan={2}>Total Leave</th>
+            </tr>
+            <tr className="bg-slate-50">
+              {days.map((d) => (
+                <th key={d.key} className={`border border-slate-200 px-1 py-1 text-center text-[10px] font-bold ${d.dayName === "Sat" || d.dayName === "Sun" ? "text-red-400" : "text-[#11164a]"}`}>
+                  {d.dayName}<br/>{d.date}
+                </th>
+              ))}
+              {["UPL","HUPL","SL","HSL","SPL","HSPL","AL","HAL","ML","CL","HCL"].map((code) => (
+                <th key={code} className="border border-slate-200 px-1 py-1 text-center text-[10px] font-bold text-[#11164a]">{code}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sortedUsers.map((user, idx) => {
+              const startDate = user.contract_start_date || "-";
+              const pos = user.position || "-";
+              const dept = user.department || "-";
+              let actualWorkingDays = 0;
+              const leaveCounts = { UPL:0, HUPL:0, SL:0, HSL:0, SPL:0, HSPL:0, AL:0, HAL:0, ML:0, CL:0, HCL:0 };
+              let totalLeaveDays = 0;
+
+              return (
+                <tr key={user.id} className="hover:bg-slate-50">
+                  <td className="border border-slate-200 px-2 py-1 text-center font-bold text-[#11164a]">{idx + 1}</td>
+                  <td className="border border-slate-200 px-2 py-1 font-semibold text-[#11164a]">{user.emp_code || "-"}</td>
+                  <td className="border border-slate-200 px-2 py-1 font-semibold text-[#11164a]">{user.name || "-"}</td>
+                  <td className="border border-slate-200 px-2 py-1 text-slate-600">{dept}</td>
+                  <td className="border border-slate-200 px-2 py-1 text-slate-600">{pos}</td>
+                  {days.map((d) => {
+                    const leave = getLeaveForEmployee(user.id, d.key);
+                    const isWeekend = d.dayName === "Sun";
+                    if (leave) {
+                      const code = leave.half_day ? (halfLeaveCodeMap[leave.leave_type] || "LV") : (leaveCodeMap[leave.leave_type] || "LV");
+                      const fullCode = leave.half_day ? (halfLeaveCodeMap[leave.leave_type] || "LV") : (leaveCodeMap[leave.leave_type] || "LV");
+                      if (leaveCounts[fullCode] !== undefined) leaveCounts[fullCode]++;
+                      totalLeaveDays++;
+                      return (
+                        <td key={d.key} className={`border border-slate-200 px-1 py-1 text-center text-[10px] font-bold ${
+                          leave.half_day ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-600"
+                        }`}>{code}</td>
+                      );
+                    }
+                    if (!isWeekend) actualWorkingDays++;
+                    return (
+                      <td key={d.key} className={`border border-slate-200 px-1 py-1 text-center text-[10px] ${
+                        isWeekend ? "bg-slate-100 text-slate-300" : "text-slate-400"
+                      }`}>{isWeekend ? "W" : ""}</td>
+                    );
+                  })}
+                  <td className="border border-slate-200 px-2 py-1 text-center font-bold text-[#11164a]">{actualWorkingDays}</td>
+                  {["UPL","HUPL","SL","HSL","SPL","HSPL","AL","HAL","ML","CL","HCL"].map((code) => (
+                    <td key={code} className="border border-slate-200 px-2 py-1 text-center font-semibold text-slate-700">{leaveCounts[code] || 0}</td>
+                  ))}
+                  <td className="border border-slate-200 px-2 py-1 text-center font-bold text-[#11164a]">{totalLeaveDays}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+};
 
 export default RequestsPage;

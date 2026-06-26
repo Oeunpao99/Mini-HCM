@@ -1,10 +1,10 @@
 import { FiCalendar, FiFileText } from "react-icons/fi";
 
 const requestTypeLabels = {
-  leave: "Leave Request",
+  leave: "Leave",
   permission: "Permission",
   flexible: "Flexible",
-  ot: "Overtime",
+  ot: "OT",
 };
 
 export const reasonMetaPrefixes = [

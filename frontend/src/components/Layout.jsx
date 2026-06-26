@@ -108,11 +108,6 @@ const ModuleGroup = ({ group, isExpanded, onToggle }) => {
       >
         {group.icon}
         <span className="flex-1 text-left">{group.label}</span>
-        {hasItems && (
-          <FiChevronDown
-            className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? "rotate-0" : "-rotate-90"}`}
-          />
-        )}
           {!hasItems && (
             <span className="text-[10px] font-semibold text-slate-400">Empty</span>
           )}
