@@ -86,15 +86,21 @@ const ScanTime = ({ icon: Icon, value, muted }) => (
   </span>
 );
 
-const DetailItem = ({ icon: Icon, label, value }) => (
+const DetailItem = ({ icon: Icon, label, value, badge }) => (
   <div className="min-w-0 rounded-lg bg-slate-50 p-3">
     <div className="flex items-center gap-2 text-xs font-extrabold uppercase text-slate-400">
       <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
       <span className="truncate">{label}</span>
     </div>
-    <p className="mt-1 break-words text-sm font-extrabold text-slate-900">
-      {value || "---"}
-    </p>
+    {badge ? (
+      <span className={`mt-1 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold leading-tight ${badge}`}>
+        {value || "---"}
+      </span>
+    ) : (
+      <p className="mt-1 break-words text-sm font-extrabold text-slate-900">
+        {value || "---"}
+      </p>
+    )}
   </div>
 );
 
@@ -116,10 +122,10 @@ const AttendanceDetail = ({ item }) => {
         <DetailItem icon={FiLogIn} label="Check In" value={formatTime(getCheckIn(item))} />
         <DetailItem icon={FiLogOut} label="Check Out" value={formatTime(getCheckOut(item))} />
         <DetailItem icon={FiClock} label="Worked Hours" value={`${compactNumber(item.worked_hours)}h`} />
-        <DetailItem icon={FiAlertTriangle} label="Late" value={item.is_late ? "Yes" : "No"} />
-        <DetailItem icon={FiClock} label="Early Checkout" value={item.is_early_checkout ? "Yes" : "No"} />
-        <DetailItem icon={FiCheckCircle} label="Flexible Scan" value={item.flexible || item.flexible_scan ? "Yes" : "No"} />
-        <DetailItem icon={FiCheckCircle} label="Approval" value={approvalText(item)} />
+        <DetailItem icon={FiAlertTriangle} label="Late" value={item.is_late ? "Yes" : "No"} badge={item.is_late ? "bg-red-100 text-red-700" : item.check_in_time ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"} />
+        <DetailItem icon={FiClock} label="Early Checkout" value={item.is_early_checkout ? "Yes" : "No"} badge={item.is_early_checkout ? "bg-amber-100 text-amber-700" : item.check_out_time ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"} />
+        <DetailItem icon={FiCheckCircle} label="Flexible Scan" value={item.flexible || item.flexible_scan ? "Yes" : "No"} badge={item.flexible || item.flexible_scan ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-400"} />
+        <DetailItem icon={FiCheckCircle} label="Approval" value={approvalText(item)} badge={!item.requires_manager_approval ? "bg-slate-100 text-slate-400" : item.manager_approved === null || item.manager_approved === undefined ? "bg-amber-100 text-amber-700" : item.manager_approved ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"} />
         <DetailItem icon={FiFileText} label="Reason" value={item.needs_approval_reason} />
       </div>
 
@@ -195,16 +201,18 @@ const AttendanceRow = ({ item, expanded, onToggle }) => {
           </div>
 
           {(lateText || item.flexible || item.flexible_scan) && (
-            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs font-bold">
+            <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
               {lateText && (
-                <span className="text-amber-600">
+                <span className="inline-block rounded-full bg-red-100 px-2.5 py-0.5 text-[11px] font-bold leading-tight text-red-700">
                   {String(lateText).startsWith("Late")
                     ? lateText
                     : `Late ${lateText}`}
                 </span>
               )}
               {(item.flexible || item.flexible_scan) && (
-                <span className="text-blue-600">on Flexible</span>
+                <span className="inline-block rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-bold leading-tight text-blue-700">
+                  Flexible
+                </span>
               )}
             </div>
           )}

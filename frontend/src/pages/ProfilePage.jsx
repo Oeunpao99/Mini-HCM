@@ -119,7 +119,7 @@ const FieldRow = ({ icon: Icon, label, value }) => {
   );
 };
 
-const DetailItem = ({ icon: Icon, label, value }) => {
+const DetailItem = ({ icon: Icon, label, value, badge }) => {
   if (value === undefined || value === null || value === "") return null;
 
   return (
@@ -127,9 +127,15 @@ const DetailItem = ({ icon: Icon, label, value }) => {
       <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[#37517e]" aria-hidden />
       <div className="min-w-0">
         <p className="text-xs font-bold text-[#37517e]/75">{label}</p>
-        <p className="mt-1 truncate text-sm font-extrabold text-[#111b4f]">
-          {value}
-        </p>
+        {badge ? (
+          <span className={`mt-1 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold leading-tight ${badge}`}>
+            {value}
+          </span>
+        ) : (
+          <p className="mt-1 truncate text-sm font-extrabold text-[#111b4f]">
+            {value}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -329,9 +335,9 @@ function AttendanceDetailPanel({ attendance }) {
               <DetailItem icon={FiClock} label="Check In" value={formatTime(selectedRecord?.check_in_time)} />
               <DetailItem icon={FiClock} label="Check Out" value={formatTime(selectedRecord?.check_out_time)} />
               <DetailItem icon={FiTrendingUp} label="Worked Hours" value={`${compactNumber(selectedRecord?.worked_hours)}h`} />
-              <DetailItem icon={FiAlertTriangle} label="Late" value={selectedRecord?.is_late ? "Yes" : "No"} />
-              <DetailItem icon={FiClock} label="Early Checkout" value={selectedRecord?.is_early_checkout ? "Yes" : "No"} />
-              <DetailItem icon={FiRefreshCw} label="Flexible Scan" value={selectedRecord?.flexible_scan ? "Yes" : "No"} />
+              <DetailItem icon={FiAlertTriangle} label="Late" value={selectedRecord?.is_late ? "Yes" : "No"} badge={selectedRecord?.is_late ? "bg-red-100 text-red-700" : selectedRecord?.check_in_time ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"} />
+              <DetailItem icon={FiClock} label="Early Checkout" value={selectedRecord?.is_early_checkout ? "Yes" : "No"} badge={selectedRecord?.is_early_checkout ? "bg-amber-100 text-amber-700" : selectedRecord?.check_out_time ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"} />
+              <DetailItem icon={FiRefreshCw} label="Flexible Scan" value={selectedRecord?.flexible_scan ? "Yes" : "No"} badge={selectedRecord?.flexible_scan ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-400"} />
               <DetailItem icon={FiShield} label="Approval" value={
                 selectedRecord?.requires_manager_approval
                   ? selectedRecord?.manager_approved === null
@@ -340,7 +346,7 @@ function AttendanceDetailPanel({ attendance }) {
                       ? "Approved"
                       : "Rejected"
                   : "Not required"
-              } />
+              } badge={!selectedRecord?.requires_manager_approval ? "bg-slate-100 text-slate-400" : selectedRecord?.manager_approved === null || selectedRecord?.manager_approved === undefined ? "bg-amber-100 text-amber-700" : selectedRecord?.manager_approved ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"} />
               <DetailItem icon={FiFileText} label="Reason" value={selectedRecord?.needs_approval_reason} />
             </div>
 

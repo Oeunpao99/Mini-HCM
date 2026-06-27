@@ -547,7 +547,7 @@ const AdminPage = () => {
                   <th className="px-3 py-3">Check-Out</th>
                   <th className="px-3 py-3">Work Hours</th>
                   <th className="px-3 py-3">Status</th>
-                  <th className="px-3 py-3">Leave Request</th>
+                  <th className="px-3 py-3">Attendance Adjustment</th>
                   <th className="px-3 py-3">Shift</th>
                   <th className="px-3 py-3">Late Min</th>
                   <th className="px-3 py-3">Early Leave</th>
@@ -581,8 +581,18 @@ const AdminPage = () => {
                     <td className="px-3 py-3 font-semibold text-[#111b4f]">{row.user.sub_department || "-"}</td>
                     <td className="px-3 py-3 font-semibold text-[#111b4f]">{row.user.position || "-"}</td>
                     <td className="px-3 py-3 font-semibold text-[#111b4f]">{dateKey(row.record?.date)}</td>
-                    <td className={`px-3 py-3 font-extrabold ${row.status === "late" ? "text-orange-600" : "text-emerald-600"}`}>{formatTime(row.record?.check_in_time)}</td>
-                    <td className="px-3 py-3 font-extrabold text-emerald-600">{formatTime(row.record?.check_out_time)}</td>
+                    <td className="px-3 py-3">
+                      <div className={`font-extrabold ${row.status === "late" ? "text-orange-600" : "text-emerald-600"}`}>{formatTime(row.record?.check_in_time)}</div>
+                      {row.status === "late" && row.record?.check_in_time && (
+                        <span className="mt-1 inline-block rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold leading-tight text-red-700">Late</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="font-extrabold text-emerald-600">{formatTime(row.record?.check_out_time)}</div>
+                      {row.record?.is_early_checkout && row.record?.check_out_time && (
+                        <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold leading-tight text-amber-700">Early</span>
+                      )}
+                    </td>
                     <td className="px-3 py-3 font-bold text-[#111b4f]">{formatHours(row.workedHours)}</td>
                     <td className="px-3 py-3">
                       <span className={`inline-flex min-w-20 justify-center rounded-full px-2.5 py-1 text-xs font-extrabold ${statusTone(row.status)}`}>
@@ -590,17 +600,10 @@ const AdminPage = () => {
                       </span>
                     </td>
                     <td className="px-3 py-3">
-                      {row.request ? (
-                        <button
-                          type="button"
-                          onClick={() => { setSelectedRequest(row.request); setSelectedRequestUser(row.user); }}
-                          className="flex items-center gap-2 rounded-md px-2 py-1 text-xs font-semibold hover:bg-slate-100"
-                        >
-                          <span className="text-[#111b4f]">{requestLeaveTypeLabel(row.request)}</span>
-                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${requestStatusBadgeClass(row.request.status)}`}>
-                            {row.request.status === "approved" ? "Approved" : row.request.status === "rejected" ? "Rejected" : "Pending"}
-                          </span>
-                        </button>
+                      {row.record?.requires_manager_approval ? (
+                        <span className="text-xs font-semibold text-amber-700">{row.record?.needs_approval_reason || "Adjustment"}</span>
+                      ) : row.request ? (
+                        <span className="text-xs font-semibold text-slate-400">{requestLeaveTypeLabel(row.request)}</span>
                       ) : (
                         <span className="text-xs font-semibold text-slate-400">-</span>
                       )}
@@ -610,12 +613,20 @@ const AdminPage = () => {
                     <td className="px-3 py-3 font-semibold text-[#111b4f]">{earlyMin !== null && earlyMin > 0 ? <span className="text-orange-600">{formatMinutes(earlyMin)}</span> : earlyMin === 0 ? <span className="text-emerald-600">0m</span> : "-"}</td>
                     <td className="px-3 py-3 font-semibold text-[#111b4f]">{otHours > 0 ? <span className="text-violet-600">{formatHours(otHours)}</span> : "-"}</td>
                     <td className="px-3 py-3">
-                      {isApproved === true ? (
-                        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-extrabold text-emerald-700">Approved</span>
-                      ) : isApproved === false ? (
-                        <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-extrabold text-red-700">Rejected</span>
-                      ) : row.record?.needs_approval_reason ? (
-                        <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-extrabold text-amber-700">Pending</span>
+                      {row.record?.requires_manager_approval ? (
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${
+                          row.record?.manager_approved === true
+                            ? "bg-emerald-100 text-emerald-700"
+                            : row.record?.manager_approved === false
+                              ? "bg-red-100 text-red-700"
+                              : "bg-amber-100 text-amber-700"
+                        }`}>
+                          {row.record?.manager_approved === true
+                            ? "Approved"
+                            : row.record?.manager_approved === false
+                              ? "Rejected"
+                              : "Pending"}
+                        </span>
                       ) : row.request?.status === "approved" ? (
                         <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-extrabold text-blue-700">On Leave</span>
                       ) : row.request?.status === "rejected" ? (

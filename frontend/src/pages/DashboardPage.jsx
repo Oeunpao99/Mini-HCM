@@ -357,13 +357,21 @@ const DashboardPage = () => {
             <p className="mt-5 text-lg font-extrabold text-slate-950">
               {formatAttendanceTime(daily?.check_in_time)}
             </p>
-            <p className="mt-4 text-xs font-semibold text-slate-600">
-              {daily?.is_late
-                ? "Late"
-                : daily?.check_in_time
-                  ? "On time"
-                  : "---"}
-            </p>
+            <span
+              className={`mt-3 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold leading-tight ${
+                !daily?.check_in_time
+                  ? "bg-slate-100 text-slate-400"
+                  : daily?.is_late
+                    ? "bg-red-100 text-red-700"
+                    : "bg-emerald-100 text-emerald-700"
+              }`}
+            >
+              {!daily?.check_in_time
+                ? "---"
+                : daily?.is_late
+                  ? "Late"
+                  : "On Time"}
+            </span>
           </div>
 
           <div className="attendance-tile">
@@ -374,13 +382,21 @@ const DashboardPage = () => {
             <p className="mt-5 text-lg font-extrabold text-slate-950">
               {formatAttendanceTime(daily?.check_out_time)}
             </p>
-            <p className="mt-4 text-xs font-semibold text-slate-600">
-              {daily?.is_early_checkout
-                ? "Early"
-                : daily?.check_out_time
-                  ? "Completed"
-                  : "---"}
-            </p>
+            <span
+              className={`mt-3 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold leading-tight ${
+                !daily?.check_out_time
+                  ? "bg-slate-100 text-slate-400"
+                  : daily?.is_early_checkout
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-emerald-100 text-emerald-700"
+              }`}
+            >
+              {!daily?.check_out_time
+                ? "---"
+                : daily?.is_early_checkout
+                  ? "Early"
+                  : "Completed"}
+            </span>
           </div>
         </div>
       </section>

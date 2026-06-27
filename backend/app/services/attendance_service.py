@@ -7,8 +7,7 @@ from app.core.time_rules import (
     standard_checkout_time,
 )
 from app.models.attendance.models import Attendance
-from app.models.request import Request
-from sqlalchemy import and_, extract
+from sqlalchemy import extract
 from sqlalchemy.orm import Session
 
 
@@ -45,23 +44,7 @@ def auto_checkout_open_records(db: Session, user_id: int | None = None) -> int:
 
 
 def validate_checkout_time(db: Session, user_id: int, target_date: date, requested_dt: datetime) -> tuple[bool, str | None]:
-    if requested_dt.time() >= standard_checkout_time():
-        return True, None
-
-    approved_permission = (
-        db.query(Request)
-        .filter(
-            Request.user_id == user_id,
-            Request.date == target_date,
-            Request.type.in_(["permission", "flexible"]),
-            Request.status == "approved",
-        )
-        .first()
-    )
-    if approved_permission:
-        return True, None
-
-    return False, "Early checkout requires an approved permission request."
+    return True, None
 
 
 def is_late_checkin(checkin_dt: datetime) -> bool:
