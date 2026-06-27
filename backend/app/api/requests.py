@@ -304,6 +304,9 @@ async def create_request(
         payload["backup_user_id"] = form.get("backup_user_id") or None
         payload["reason"] = form.get("reason") or None
         payload["admin_remarks"] = form.get("admin_remarks") or None
+        payload["ot_type"] = form.get("ot_type") or None
+        payload["total_hours"] = form.get("total_hours") or None
+        payload["project_task"] = form.get("project_task") or None
         attachment = form.get("attachment")
     else:
         payload = await request.json()
@@ -356,6 +359,26 @@ async def create_request(
     db.add(req)
     db.commit()
     db.refresh(req)
+
+    if payload.get("type") == "ot":
+        total_hours = payload.get("total_hours")
+        if total_hours is not None:
+            total_hours = float(total_hours)
+        ot_req = OtRequest(
+            id=req.id,
+            user_id=user.id,
+            date=parsed_date,
+            start_time=parsed_start,
+            end_time=parsed_end,
+            ot_type=payload.get("ot_type") or None,
+            total_hours=total_hours,
+            project_task=payload.get("project_task") or None,
+            reason=payload.get("reason"),
+            backup_user_id=backup_user_id,
+            status="pending",
+        )
+        db.add(ot_req)
+        db.commit()
 
     # TODO: persist attachment if provided (store on disk or cloud). Currently ignored.
 

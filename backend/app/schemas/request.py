@@ -12,6 +12,9 @@ class CreateRequestIn(BaseModel):
     backup_user_id: int | None = None
     reason: str | None = None
     admin_remarks: str | None = None
+    ot_type: str | None = None
+    total_hours: float | None = None
+    project_task: str | None = None
 
 
 class UpdateRequestStatusIn(BaseModel):

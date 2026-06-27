@@ -3,6 +3,7 @@ import { BiSolidTimeFive } from "react-icons/bi";
 import { BsFillClipboardDataFill } from "react-icons/bs";
 import {
   FiBell,
+  FiBookOpen,
   FiBriefcase,
   FiCalendar,
   FiCheckSquare,
@@ -55,6 +56,14 @@ const moduleGroups = [
     items: [
       { to: "/self-service", label: "ESS Dashboard", icon: <FiUserCheck className="h-4 w-4" aria-hidden /> },
       { to: "/my-attendance", label: "My Attendance", icon: <FiClock className="h-4 w-4" aria-hidden /> },
+    ],
+  },
+  {
+    key: "training",
+    label: "Training & Development",
+    icon: <FiBookOpen className="h-5 w-5" aria-hidden />,
+    items: [
+      { to: "/training", label: "Training & Development", icon: <FiBookOpen className="h-4 w-4" aria-hidden /> },
     ],
   },
 ];

@@ -15,6 +15,7 @@ import RequestsPage from "./pages/RequestsPage";
 import SelfServicePage from "./pages/SelfServicePage";
 import ShiftPage from "./pages/ShiftPage";
 import SwapPage from "./pages/SwapPage";
+import TrainingPage from "./pages/TrainingPage";
 
 const App = () => {
   const { token, role } = useAuth();
@@ -97,6 +98,17 @@ const App = () => {
           <ProtectedRoute>
             <Layout>
               <SwapPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/training"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <TrainingPage />
             </Layout>
           </ProtectedRoute>
         }

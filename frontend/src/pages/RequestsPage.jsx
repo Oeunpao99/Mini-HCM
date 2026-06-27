@@ -247,19 +247,24 @@ const requestDateRange = (request) => {
   const endDate = getReasonValue(request.reason, "End date") || request.date;
   if (request.type === "leave") return `${formatDate(request.date)} - ${formatDate(endDate)}`;
   if (request.type === "permission") return `${formatDate(request.date)}, ${formatRequestTime(request.start_time)} - ${formatRequestTime(request.end_time)}`;
-  if (request.type === "ot") {
-    const start = getReasonValue(request.reason, "Start time") || request.start_time;
-    const end = getReasonValue(request.reason, "End time") || request.end_time;
-    return `${formatDate(request.date)}, ${formatRequestTime(start)} - ${formatRequestTime(end)}`;
-  }
+  if (request.type === "ot") return `${formatDate(request.date)}, ${formatRequestTime(request.start_time)} - ${formatRequestTime(request.end_time)}`;
   return `${formatDate(request.date)}, ${formatRequestTime(request.start_time)} - ${formatRequestTime(request.end_time)}`;
 };
 
 const requestDetailLabel = (request) => {
   if (request.type === "leave") return formatLeaveType(request.leave_type || "annual");
-  if (request.type === "ot") return getReasonValue(request.reason, "Project") || getReasonValue(request.reason, "Customer") || "Overtime work";
+  if (request.type === "ot") return "Overtime";
   if (request.type === "flexible") return getReasonValue(request.reason, "Flexible type") || getReasonValue(request.reason, "Request type") || "Flexible work";
   return getReasonValue(request.reason, "Duration") || "Permission";
+};
+
+const computeHoursFromTimes = (start, end) => {
+  if (!start || !end) return null;
+  const [sh, sm] = String(start).split(":").map(Number);
+  const [eh, em] = String(end).split(":").map(Number);
+  if (isNaN(sh) || isNaN(sm) || isNaN(eh) || isNaN(em)) return null;
+  const diff = (eh * 60 + em - (sh * 60 + sm)) / 60;
+  return diff > 0 ? diff : null;
 };
 
 const requestUnitValue = (request) => {
@@ -267,7 +272,10 @@ const requestUnitValue = (request) => {
     const days = getRequestDays(request);
     return `${days} ${days === 1 ? "day" : "days"}`;
   }
-  if (request.type === "ot") return `${Number(getReasonValue(request.reason, "Hour work") || 0).toFixed(1)}h`;
+  if (request.type === "ot") {
+    const hours = computeHoursFromTimes(request.start_time, request.end_time);
+    return hours !== null ? `${hours.toFixed(1)}h` : "-";
+  }
   return request.start_time && request.end_time ? "Timed" : "-";
 };
 
@@ -327,15 +335,15 @@ const isDateInRequest = (request, targetDate) => {
 };
 
 const LeaveStatCard = ({ label, value, helper, icon: Icon, tone }) => (
-  <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-    <div className="flex items-center gap-4">
-      <span className={`grid h-14 w-14 shrink-0 place-items-center rounded-lg ${tone}`}>
-        <Icon className="h-7 w-7" aria-hidden />
+  <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+    <div className="flex items-center gap-2.5">
+      <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${tone}`}>
+        <Icon className="h-5 w-5" aria-hidden />
       </span>
       <div className="min-w-0">
-        <p className="text-sm font-bold text-[#151b4f]">{label}</p>
-        <p className="mt-1 text-3xl font-extrabold leading-none text-[#151b4f]">{value}</p>
-        {helper && <p className="mt-2 text-sm font-semibold text-slate-500">{helper}</p>}
+        <p className="text-[11px] font-bold text-[#151b4f] leading-tight">{label}</p>
+        <p className="mt-0.5 text-xl font-extrabold leading-none text-[#151b4f]">{value}</p>
+        {helper && <p className="mt-1 text-[11px] font-semibold text-slate-500">{helper}</p>}
       </div>
     </div>
   </div>
@@ -498,15 +506,13 @@ const initialForm = {
   project: "",
   customer: "",
   address: "",
-  ot_project: "",
-  ot_customer: "",
-  ot_phone: "",
+  ot_date: "",
   ot_type: "",
-  ot_status: "",
-  ot_activity: "",
   ot_start_time: "",
   ot_end_time: "",
-  ot_hour_work: "",
+  ot_hours: "",
+  ot_reason: "",
+  ot_project_task: "",
 };
 
 const RequestsPage = () => {
@@ -794,9 +800,11 @@ const RequestsPage = () => {
     const pending = scope.filter((request) => request.status === "pending");
     const rejected = selectedMonthRequests.filter((request) => request.status === "rejected");
     const onLeaveToday = leaveRequests.filter((request) => request.status === "approved" && isDateInRequest(request, today));
+    const otHoursFromRequest = (r) =>
+      Number(getReasonValue(r.reason, "Hour work") || computeHoursFromTimes(r.start_time, r.end_time) || 0);
     const pendingOtHours = filteredManagementRequests
       .filter((request) => request.type === "ot" && request.status === "pending")
-      .reduce((sum, request) => sum + Number(getReasonValue(request.reason, "Hour work") || 0), 0);
+      .reduce((sum, request) => sum + otHoursFromRequest(request), 0);
     const usedAnnual = leaveRequests
       .filter((request) => request.status === "approved" && String(request.leave_type || "annual").includes("annual"))
       .reduce((sum, request) => sum + getRequestDays(request), 0);
@@ -888,37 +896,38 @@ const RequestsPage = () => {
     }));
 
     const otRequests = filteredManagementRequests.filter((r) => r.type === "ot");
+    const otApprovedStatuses = ["approved", "paid"];
     const totalOtHours = otRequests
-      .filter((r) => r.status === "approved" || r.status === "pending")
-      .reduce((sum, r) => sum + Number(getReasonValue(r.reason, "Hour work") || 0), 0);
+      .filter((r) => r.status === "approved" || r.status === "pending" || r.status === "paid")
+      .reduce((sum, r) => sum + otHoursFromRequest(r), 0);
     const approvedOtHours = otRequests
-      .filter((r) => r.status === "approved")
-      .reduce((sum, r) => sum + Number(getReasonValue(r.reason, "Hour work") || 0), 0);
+      .filter((r) => otApprovedStatuses.includes(r.status))
+      .reduce((sum, r) => sum + otHoursFromRequest(r), 0);
     const pendingOtCount = otRequests.filter((r) => r.status === "pending").length;
-    const approvedOtCount = otRequests.filter((r) => r.status === "approved").length;
+    const approvedOtCount = otRequests.filter((r) => otApprovedStatuses.includes(r.status)).length;
     const rejectedOtCount = otRequests.filter((r) => r.status === "rejected").length;
     const paidOtCount = otRequests.filter((r) => r.status === "paid").length;
     const paidOtHours = otRequests
       .filter((r) => r.status === "paid")
-      .reduce((sum, r) => sum + Number(getReasonValue(r.reason, "Hour work") || 0), 0);
+      .reduce((sum, r) => sum + otHoursFromRequest(r), 0);
     const hourlyRate = 10;
     const otCostSummary = (approvedOtHours * hourlyRate).toFixed(2);
 
     const otByDepartment = [];
     const deptMap = new Map();
-    otRequests.filter((r) => r.status === "approved").forEach((r) => {
+    otRequests.filter((r) => otApprovedStatuses.includes(r.status)).forEach((r) => {
       const user = userById.get(r.user_id);
       const dept = user?.department || "Unassigned";
-      const hours = Number(getReasonValue(r.reason, "Hour work") || 0);
+      const hours = otHoursFromRequest(r);
       deptMap.set(dept, (deptMap.get(dept) || 0) + hours);
     });
     deptMap.forEach((hours, dept) => otByDepartment.push({ department: dept, hours: Math.round(hours * 10) / 10 }));
 
     const topOtEmployees = [];
     const empMap = new Map();
-    otRequests.filter((r) => r.status === "approved").forEach((r) => {
+    otRequests.filter((r) => otApprovedStatuses.includes(r.status)).forEach((r) => {
       const uid = r.user_id;
-      const hours = Number(getReasonValue(r.reason, "Hour work") || 0);
+      const hours = otHoursFromRequest(r);
       empMap.set(uid, (empMap.get(uid) || 0) + hours);
     });
     empMap.forEach((hours, uid) => {
@@ -931,7 +940,7 @@ const RequestsPage = () => {
       const d = new Date(year, index, 1);
       const key = monthKey(d);
       const rows = otRequests.filter((r) => monthKey(r.date) === key);
-      const totalHours = rows.reduce((sum, r) => sum + Number(getReasonValue(r.reason, "Hour work") || 0), 0);
+      const totalHours = rows.reduce((sum, r) => sum + otHoursFromRequest(r), 0);
       return {
         month: d.toLocaleDateString(undefined, { month: "short" }),
         hours: Math.round(totalHours * 10) / 10,
@@ -1080,25 +1089,19 @@ const RequestsPage = () => {
     }
 
     if (form.type === "ot") {
+      const totalHours = form.ot_hours ? parseFloat(form.ot_hours) : null;
       return {
         type: "ot",
-        date: todayKey(),
+        date: form.ot_date || todayKey(),
         start_time: form.ot_start_time || "",
         end_time: form.ot_end_time || "",
         backup_user_id: form.backup_user_id
           ? Number(form.backup_user_id)
           : null,
-        reason: [
-          form.ot_activity,
-          `Project: ${form.ot_project || "-"}`,
-          `Customer: ${form.ot_customer || "-"}`,
-          `Phone: ${form.ot_phone || "-"}`,
-          `OT type: ${form.ot_type || "-"}`,
-          `OT status: ${form.ot_status || "-"}`,
-          `Hour work: ${form.ot_hour_work || "-"}`,
-        ]
-          .filter(Boolean)
-          .join("\n"),
+        ot_type: form.ot_type || "",
+        total_hours: totalHours,
+        project_task: form.ot_project_task || "",
+        reason: form.ot_reason || "",
       };
     }
 
@@ -1579,95 +1582,71 @@ const RequestsPage = () => {
     </>
   );
 
+  const computeOtHours = (start, end) => {
+    if (!start || !end) return "";
+    const [sh, sm] = start.split(":").map(Number);
+    const [eh, em] = end.split(":").map(Number);
+    if (isNaN(sh) || isNaN(sm) || isNaN(eh) || isNaN(em)) return "";
+    const diff = (eh * 60 + em - (sh * 60 + sm)) / 60;
+    if (diff <= 0) return "";
+    return diff.toFixed(1);
+  };
+
+  const otHoursDisplay = useMemo(
+    () => computeOtHours(form.ot_start_time, form.ot_end_time),
+    [form.ot_start_time, form.ot_end_time],
+  );
+
+  useEffect(() => {
+    if (otHoursDisplay && otHoursDisplay !== form.ot_hours) {
+      updateForm({ ot_hours: otHoursDisplay });
+    }
+  }, [otHoursDisplay]);
+
   const renderOvertimeForm = () => (
     <>
-      <h2 className="mb-4 text-xl font-extrabold text-black">Overtime Form</h2>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-        <FieldShell label="Project Name" required>
-          <input
-            className={inputClass}
-            value={form.ot_project}
-            onChange={(event) => updateForm({ ot_project: event.target.value })}
-            placeholder="Project name"
-            required
-          />
-        </FieldShell>
-        <FieldShell label="Customer Name" required>
-          <input
-            className={inputClass}
-            value={form.ot_customer}
-            onChange={(event) =>
-              updateForm({ ot_customer: event.target.value })
-            }
-            placeholder="Customer name"
-            required
-          />
-        </FieldShell>
-        <FieldShell label="Phone Number" required>
-          <input
-            className={inputClass}
-            value={form.ot_phone}
-            onChange={(event) => updateForm({ ot_phone: event.target.value })}
-            placeholder="Phone number"
-            required
-          />
-        </FieldShell>
-        <FieldShell label="OT Type" required>
-          <SelectField
-            value={form.ot_type}
-            onChange={(value) => updateForm({ ot_type: value })}
-            placeholder="Select type"
-            options={[
-              ["weekday", "Weekday"],
-              ["weekend", "Weekend"],
-              ["holiday", "Holiday"],
-            ]}
-            required
-          />
-        </FieldShell>
-        <FieldShell label="OT Status" required>
-          <SelectField
-            value={form.ot_status}
-            onChange={(value) => updateForm({ ot_status: value })}
-            placeholder="Select status"
-            options={[
-              ["planned", "Planned"],
-              ["urgent", "Urgent"],
-              ["completed", "Completed"],
-            ]}
-            required
-          />
-        </FieldShell>
-        <AttachmentField
-          attachment={attachment}
-          onChange={setAttachment}
-          label="Reference"
-        />
-        <FieldShell label="Activity" required className="col-span-2">
-          <textarea
-            className={textAreaClass}
-            placeholder="Describe the activity"
-            value={form.ot_activity}
-            onChange={(event) =>
-              updateForm({ ot_activity: event.target.value })
-            }
-            required
-          />
-        </FieldShell>
+      <h2 className="mb-5 text-xl font-extrabold text-black">Overtime Request</h2>
+
+      <div className="mb-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <h3 className="mb-3 text-sm font-extrabold text-slate-700 uppercase tracking-wide">Employee Information</h3>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <ReadOnlyField label="Employee ID" value={empCode} />
+          <ReadOnlyField label="Employee Name" value={name} />
+          <ReadOnlyField label="Department" value={department} />
+        </div>
       </div>
 
-      <div className="mt-6 flex items-center justify-between">
-        <h3 className="text-xl font-extrabold text-black">OT Items</h3>
-        <button
-          type="button"
-          className="text-base font-semibold text-emerald-800"
-        >
-          + Add Item
-        </button>
-      </div>
-      <div className="mt-4 rounded-xl border border-slate-300 p-4">
-        <h4 className="text-lg font-extrabold text-black">Item 1</h4>
-        <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-4">
+      <div className="mb-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <h3 className="mb-3 text-sm font-extrabold text-slate-700 uppercase tracking-wide">Overtime Information</h3>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+          <FieldShell label="OT Request No." required>
+            <div className={`${inputClass} flex items-center gap-2 text-emerald-800`}>
+              <FiClock className="h-4 w-4" />
+              <span className="font-extrabold">Auto-generated</span>
+            </div>
+          </FieldShell>
+          <FieldShell label="OT Date" required>
+            <input
+              type="date"
+              className={inputClass}
+              value={form.ot_date}
+              onChange={(event) => updateForm({ ot_date: event.target.value })}
+              required
+            />
+          </FieldShell>
+          <FieldShell label="OT Type" required>
+            <SelectField
+              value={form.ot_type}
+              onChange={(value) => updateForm({ ot_type: value })}
+              placeholder="Select OT type"
+              options={[
+                ["working_day", "Working Day"],
+                ["rest_day", "Rest Day"],
+                ["public_holiday", "Public Holiday"],
+              ]}
+              required
+            />
+          </FieldShell>
           <FieldShell label="Start Time" required>
             <TimeField
               value={form.ot_start_time}
@@ -1682,27 +1661,30 @@ const RequestsPage = () => {
               required
             />
           </FieldShell>
-          <FieldShell label="Hour Work" required>
-            <SelectField
-              value={form.ot_hour_work}
-              onChange={(value) => updateForm({ ot_hour_work: value })}
-              placeholder="Select type"
-              options={[
-                ["1", "1 hour"],
-                ["2", "2 hours"],
-                ["3", "3 hours"],
-                ["4", "4 hours"],
-              ]}
+          <FieldShell label="Total Hours">
+            <div className={`${inputClass} flex items-center gap-2 text-emerald-800`}>
+              <FiClock className="h-4 w-4" />
+              <span className="font-extrabold">
+                {otHoursDisplay ? `${otHoursDisplay}h` : "-"}
+              </span>
+            </div>
+          </FieldShell>
+          <FieldShell label="Reason" required className="col-span-2">
+            <textarea
+              className={textAreaClass}
+              placeholder="Reason for overtime"
+              value={form.ot_reason}
+              onChange={(event) => updateForm({ ot_reason: event.target.value })}
               required
             />
           </FieldShell>
-          <FieldShell label="Total OT Hours">
-            <div
-              className={`${inputClass} flex items-center gap-2 text-emerald-800`}
-            >
-              <FiClock className="h-4 w-4" />
-              <span>{form.ot_hour_work ? `${form.ot_hour_work}h` : "-"}</span>
-            </div>
+          <FieldShell label="Project/Task" className="col-span-2">
+            <input
+              className={inputClass}
+              value={form.ot_project_task}
+              onChange={(event) => updateForm({ ot_project_task: event.target.value })}
+              placeholder="Related project or task (optional)"
+            />
           </FieldShell>
         </div>
       </div>
@@ -1774,8 +1756,10 @@ const RequestsPage = () => {
 
     const totalMonth = Math.max(managementStats.selectedMonthRequests.length, 1);
     const withoutOt = (rows) => requestType === "leave" ? rows.filter((r) => r.request.type !== "ot") : rows;
+    const otRows = () => managementRows.filter((row) => row.request.type === "ot");
     const rowsForTab = (tab) => {
       const leaveRows = managementRows.filter((row) => row.request.type === "leave");
+      if (requestType === "ot") return otRows();
       if (tab === "Request History") return leaveRows;
       if (tab === "Pending Requests") return leaveRows.filter((row) => row.request.status === "pending");
       if (tab === "Approved Requests" || tab === "Leave Taken") return leaveRows.filter((row) => row.request.status === "approved");
@@ -1784,7 +1768,6 @@ const RequestsPage = () => {
       if (tab.includes("Report") || tab === "Entitlement" || tab === "Remaining Balance") return leaveRows;
       if (tab === "All Requests") return withoutOt(managementRows);
       if (tab === "My Team Requests") return withoutOt(managementRows.filter((row) => row.request.status === "pending"));
-      if (requestType === "ot") return managementRows.filter((row) => row.request.type === "ot");
       const type = requestTypeDefinitions.find((item) => item.tab === tab)?.key;
       if (type) return managementRows.filter((row) => row.request.type === type);
       return withoutOt(managementRows);
@@ -1855,6 +1838,7 @@ const RequestsPage = () => {
                     { key: "permission", label: "Permission", icon: FiClock, desc: "Short-time permission request", color: "hover:border-amber-300", iconColor: "text-amber-600" },
                     { key: "late", label: "Late", icon: FiAlertCircle, desc: "Late arrival request", color: "hover:border-red-300", iconColor: "text-red-600" },
                     { key: "flexible", label: "Flexible Work", icon: FiRefreshCw, desc: "Flexible work arrangement", color: "hover:border-emerald-300", iconColor: "text-emerald-600" },
+                    { key: "ot", label: "Overtime", icon: FiClock, desc: "Overtime work request", color: "hover:border-violet-300", iconColor: "text-violet-600" },
                   ].map((item) => {
                     const Icon = item.icon;
                     return (
@@ -1897,7 +1881,7 @@ const RequestsPage = () => {
           {!showForm && (
             <>
               {requestType === "ot" && (
-                <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+                <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
                   <LeaveStatCard label="Total OT Hours" value={`${managementStats.totalOtHours}h`} helper="All overtime hours" icon={FiClock} tone="bg-violet-600 text-white" />
                   <LeaveStatCard label="Pending OT Requests" value={managementStats.pendingOtCount} helper="Awaiting approval" icon={FiClock} tone="bg-amber-500 text-white" />
                   <LeaveStatCard label="Approved OT Requests" value={managementStats.approvedOtCount} helper={`${managementStats.approvedOtHours}h approved`} icon={FiBarChart2} tone="bg-emerald-600 text-white" />
@@ -1908,7 +1892,7 @@ const RequestsPage = () => {
               )}
 
               {requestType === "leave" && (
-                <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+                <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
                   <LeaveStatCard label="Employees on Leave Today" value={managementStats.onLeaveToday} helper="Current employees on leave" icon={FiUsers} tone="bg-violet-600 text-white" />
                   <LeaveStatCard label="Leave Requests Pending Approval" value={managementStats.pending} helper="Awaiting approval" icon={FiClock} tone="bg-amber-500 text-white" />
                   <LeaveStatCard label="Approved Leave Requests" value={managementStats.approved} helper="Approved leave applications" icon={FiCheckCircle} tone="bg-emerald-600 text-white" />
@@ -2171,7 +2155,7 @@ const RequestsPage = () => {
                   leaveRequests={items.filter((r) => r.type === "leave")}
                   month={leaveMonth}
                 />
-              ) : leaveTab.includes("Report") && (
+              ) : leaveTab.includes("Report") && requestType !== "ot" && (
                 <LeaveReportPanel
                   rows={rowsForTab(leaveTab)}
                   tab={leaveTab}
@@ -2268,6 +2252,7 @@ const RequestsPage = () => {
                     { key: "permission", label: "Permission", icon: FiClock, iconColor: "text-amber-600" },
                     { key: "late", label: "Late", icon: FiAlertCircle, iconColor: "text-red-600" },
                     { key: "flexible", label: "Flexible Work", icon: FiRefreshCw, iconColor: "text-emerald-600" },
+                    { key: "ot", label: "Overtime", icon: FiClock, iconColor: "text-violet-600" },
                   ].map((item) => {
                     const Icon = item.icon;
                     return (

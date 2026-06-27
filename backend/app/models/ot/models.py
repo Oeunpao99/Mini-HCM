@@ -2,6 +2,7 @@ from sqlalchemy import (
     DATE,
     Column,
     DateTime,
+    DECIMAL,
     ForeignKey,
     Integer,
     String,
@@ -22,6 +23,9 @@ class OtRequest(Base):
     date = Column(DATE, nullable=False, index=True)
     start_time = Column(Time, nullable=True)
     end_time = Column(Time, nullable=True)
+    ot_type = Column(String(30), nullable=True)
+    total_hours = Column(DECIMAL(5, 2), nullable=True)
+    project_task = Column(Text, nullable=True)
     reason = Column(Text, nullable=True)
     backup_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     backup_status = Column(String(20), default="skipped", nullable=False)
