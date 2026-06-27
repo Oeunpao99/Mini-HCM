@@ -314,9 +314,9 @@ def _seed_hris_data(db: Session, users: list[User], reviewer_id: int, payroll_of
                     user_id=user.id,
                     title="HR compliance basics",
                     provider="Internal HR",
-                    start_date=date(2026, 6, 10),
+                    training_date=date(2026, 6, 10),
                     end_date=date(2026, 6, 10),
-                    status="planned",
+                    status="Draft",
                 )
             )
 

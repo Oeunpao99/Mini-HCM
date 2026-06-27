@@ -1,7 +1,22 @@
-from sqlalchemy import DECIMAL, Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Text, Time, func
+from sqlalchemy import DECIMAL, Boolean, Column, Date, DateTime, Enum, ForeignKey, Integer, String, Text, Time, func
 from sqlalchemy.orm import relationship
 
 from app.db.session import Base
+
+
+TRAINING_CATEGORIES = ("Orientation", "Technical", "Soft Skill", "Compliance", "Leadership")
+TRAINING_TYPES = ("Internal", "External", "Online", "Classroom", "Workshop", "Seminar")
+TRAINING_PLAN_STATUSES = ("Draft", "Pending", "Approved", "Rejected")
+TRAINING_STATUSES = ("Planned", "Ongoing", "Completed", "Cancelled")
+
+ATTENDANCE_STATUSES = ("Present", "Absent", "Completed", "Incomplete")
+COMPLETION_STATUSES = ("Completed", "Not Completed", "In Progress")
+ASSESSMENT_RESULTS = ("Pass", "Fail", "Not Applicable")
+RECORD_STATUSES = ("Draft", "Approved", "Rejected")
+
+ASSESSMENT_TYPES = ("Annual", "Probation", "Promotion", "Ad-hoc")
+COMPETENCY_LEVELS = ("Beginner", "Intermediate", "Advanced", "Expert")
+ASSESSMENT_STATUSES = ("Draft", "Submitted", "In Review", "Approved", "Rejected", "Completed")
 
 
 class EmployeeProfile(Base):
@@ -182,17 +197,104 @@ class PublicHoliday(Base):
     created_at = Column(DateTime, server_default=func.now())
 
 
+class TrainingPlan(Base):
+    __tablename__ = "training_plans"
+
+    id = Column(Integer, primary_key=True, index=True)
+    plan_id = Column(String(20), unique=True, nullable=False, index=True)
+    title = Column(String(200), nullable=False)
+    category = Column(Enum(*TRAINING_CATEGORIES, name="training_category"), nullable=False)
+    training_type = Column(Enum(*TRAINING_TYPES, name="training_type"), nullable=False)
+    training_year = Column(Integer, nullable=False, index=True)
+    objective = Column(Text, nullable=False)
+    department = Column(String(100), nullable=True, index=True)
+    position = Column(String(100), nullable=True)
+    employee_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    planned_start_date = Column(Date, nullable=False)
+    planned_end_date = Column(Date, nullable=False)
+    duration = Column(Integer, nullable=True)
+    trainer = Column(String(200), nullable=True)
+    venue = Column(String(200), nullable=True)
+    estimated_cost = Column(DECIMAL(12, 2), nullable=True, default=0)
+    actual_cost = Column(DECIMAL(12, 2), nullable=True, default=0)
+    requested_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    approval_status = Column(Enum(*TRAINING_PLAN_STATUSES, name="training_plan_status"), nullable=False, default="Draft")
+    training_status = Column(Enum(*TRAINING_STATUSES, name="training_status"), nullable=False, default="Planned")
+    remarks = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    employee = relationship("User", foreign_keys=[employee_id])
+    requester = relationship("User", foreign_keys=[requested_by])
+
+
 class TrainingRecord(Base):
     __tablename__ = "training_records"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    title = Column(String(120), nullable=False)
-    provider = Column(String(120), nullable=True)
-    start_date = Column(Date, nullable=False)
+    plan_id = Column(Integer, ForeignKey("training_plans.id"), nullable=True)
+    title = Column(String(200), nullable=False)
+    training_type = Column(Enum(*TRAINING_TYPES, name="training_record_type"), nullable=True)
+    category = Column(Enum(*TRAINING_CATEGORIES, name="training_record_category"), nullable=True)
+    provider = Column(String(200), nullable=True)
+    training_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=True)
-    status = Column(String(30), nullable=False, default="planned")
+    duration = Column(DECIMAL(6, 1), nullable=True)
+    training_method = Column(String(50), nullable=True)
+    attendance_status = Column(Enum(*ATTENDANCE_STATUSES, name="attendance_status"), nullable=True)
+    completion_status = Column(Enum(*COMPLETION_STATUSES, name="completion_status"), nullable=True, default="In Progress")
+    assessment_result = Column(Enum(*ASSESSMENT_RESULTS, name="assessment_result"), nullable=True, default="Not Applicable")
     score = Column(DECIMAL(5, 2), nullable=True)
+    skills_gained = Column(Text, nullable=True)
+    certification = Column(String(10), nullable=True)
+    related_kpi_id = Column(Integer, nullable=True)
+    related_job_role = Column(String(100), nullable=True)
+    certificate_file = Column(Text, nullable=True)
+    feedback_file = Column(Text, nullable=True)
+    verified_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    status = Column(Enum(*RECORD_STATUSES, name="record_status"), nullable=False, default="Draft")
+    remarks = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
-    user = relationship("User")
+    user = relationship("User", foreign_keys=[user_id])
+    verifier = relationship("User", foreign_keys=[verified_by])
+    plan = relationship("TrainingPlan")
+
+
+class CompetencyAssessment(Base):
+    __tablename__ = "competency_assessments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    assessment_type = Column(Enum(*ASSESSMENT_TYPES, name="assessment_type"), nullable=False)
+    assessment_period_start = Column(Date, nullable=False)
+    assessment_period_end = Column(Date, nullable=False)
+    assessor_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    assessment_date = Column(Date, nullable=False)
+    competency_model = Column(String(200), nullable=True)
+    technical_skills = Column(Text, nullable=True)
+    soft_skills = Column(Text, nullable=True)
+    behavioral_competency = Column(Text, nullable=True)
+    technical_score = Column(DECIMAL(5, 2), nullable=False, default=0)
+    soft_skills_score = Column(DECIMAL(5, 2), nullable=False, default=0)
+    behavioral_score = Column(DECIMAL(5, 2), nullable=False, default=0)
+    overall_score = Column(DECIMAL(5, 2), nullable=True)
+    competency_level = Column(Enum(*COMPETENCY_LEVELS, name="competency_level"), nullable=True)
+    strengths = Column(Text, nullable=True)
+    improvement_areas = Column(Text, nullable=True)
+    development_needs = Column(Text, nullable=True)
+    training_recommendation_id = Column(Integer, ForeignKey("training_plans.id"), nullable=True)
+    coaching_required = Column(String(10), nullable=True)
+    career_path_suggestion = Column(Text, nullable=True)
+    verified_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approval_status = Column(Enum(*ASSESSMENT_STATUSES, name="assessment_status"), nullable=False, default="Draft")
+    remarks = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User", foreign_keys=[user_id])
+    assessor = relationship("User", foreign_keys=[assessor_id])
+    verifier_competency = relationship("User", foreign_keys=[verified_by])
+    training_recommendation = relationship("TrainingPlan")

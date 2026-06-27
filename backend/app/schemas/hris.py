@@ -176,14 +176,161 @@ class PublicHolidayIn(BaseModel):
     country: str = "Cambodia"
 
 
+class TrainingPlanIn(BaseModel):
+    title: str
+    category: str
+    training_type: str
+    training_year: int
+    objective: str
+    department: str | None = None
+    position: str | None = None
+    employee_id: int | None = None
+    planned_start_date: date
+    planned_end_date: date
+    trainer: str | None = None
+    venue: str | None = None
+    estimated_cost: Decimal | None = Field(default=None, ge=0)
+    actual_cost: Decimal | None = Field(default=None, ge=0)
+    approval_status: str = "Draft"
+    training_status: str = "Planned"
+    remarks: str | None = None
+
+
+class TrainingPlanOut(TrainingPlanIn):
+    id: int
+    plan_id: str
+    requested_by: int
+    duration: int | None
+    employee_name: str | None = None
+    requester_name: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    class Config:
+        from_attributes = True
+
+
 class TrainingRecordIn(BaseModel):
     user_id: int
+    plan_id: int | None = None
     title: str
+    training_type: str | None = None
+    category: str | None = None
     provider: str | None = None
-    start_date: date
+    training_date: date
     end_date: date | None = None
-    status: str = "planned"
+    duration: Decimal | None = None
+    training_method: str | None = None
+    attendance_status: str | None = None
+    completion_status: str | None = "In Progress"
+    assessment_result: str | None = "Not Applicable"
     score: Decimal | None = Field(default=None, ge=0, le=100)
+    skills_gained: str | None = None
+    certification: str | None = None
+    related_kpi_id: int | None = None
+    related_job_role: str | None = None
+    certificate_file: str | None = None
+    feedback_file: str | None = None
+    status: str = "Draft"
+    remarks: str | None = None
+
+
+class TrainingRecordOut(BaseModel):
+    id: int
+    user_id: int
+    plan_id: int | None
+    employee_name: str | None
+    department: str | None
+    position: str | None
+    title: str
+    training_type: str | None
+    category: str | None
+    provider: str | None
+    training_date: date
+    end_date: date | None
+    duration: Decimal | None
+    training_method: str | None
+    attendance_status: str | None
+    completion_status: str | None
+    assessment_result: str | None
+    score: Decimal | None
+    skills_gained: str | None
+    certification: str | None
+    related_kpi_id: int | None
+    related_job_role: str | None
+    certificate_file: str | None
+    feedback_file: str | None
+    verified_by: int | None
+    verifier_name: str | None
+    status: str
+    remarks: str | None
+    created_at: datetime | None
+    updated_at: datetime | None
+
+    class Config:
+        from_attributes = True
+
+
+class CompetencyAssessmentIn(BaseModel):
+    user_id: int
+    assessment_type: str
+    assessment_period_start: date
+    assessment_period_end: date
+    assessor_id: int
+    assessment_date: date
+    competency_model: str | None = None
+    technical_skills: str | None = None
+    soft_skills: str | None = None
+    behavioral_competency: str | None = None
+    technical_score: Decimal = Field(default=0, ge=0, le=100)
+    soft_skills_score: Decimal = Field(default=0, ge=0, le=100)
+    behavioral_score: Decimal = Field(default=0, ge=0, le=100)
+    strengths: str | None = None
+    improvement_areas: str | None = None
+    development_needs: str | None = None
+    training_recommendation_id: int | None = None
+    coaching_required: str | None = None
+    career_path_suggestion: str | None = None
+    approval_status: str = "Draft"
+    remarks: str | None = None
+
+
+class CompetencyAssessmentOut(BaseModel):
+    id: int
+    user_id: int
+    employee_name: str | None
+    department: str | None
+    position: str | None
+    assessment_type: str
+    assessment_period_start: date
+    assessment_period_end: date
+    assessor_id: int
+    assessor_name: str | None
+    assessment_date: date
+    competency_model: str | None
+    technical_skills: str | None
+    soft_skills: str | None
+    behavioral_competency: str | None
+    technical_score: Decimal
+    soft_skills_score: Decimal
+    behavioral_score: Decimal
+    overall_score: Decimal | None
+    competency_level: str | None
+    strengths: str | None
+    improvement_areas: str | None
+    development_needs: str | None
+    training_recommendation_id: int | None
+    coaching_required: str | None
+    career_path_suggestion: str | None
+    verified_by: int | None
+    verifier_name: str | None
+    approval_status: str
+    remarks: str | None
+    created_at: datetime | None
+    updated_at: datetime | None
+
+    class Config:
+        from_attributes = True
 
 
 class SimpleRecordOut(BaseModel):

@@ -4,6 +4,7 @@ from app.models.attendance.models import Attendance
 from app.models.app_setting import AppSetting
 from app.models.company_location import CompanyLocation
 from app.models.hris import (
+    CompetencyAssessment,
     EmployeeHistory,
     EmployeeMovementRequest,
     EmployeeProfile,
@@ -13,6 +14,7 @@ from app.models.hris import (
     PublicHoliday,
     ScheduleChange,
     ShiftSchedule,
+    TrainingPlan,
     TrainingRecord,
 )
 from app.models.leave.models import LeaveEntitlement, LeaveRequest
@@ -48,5 +50,7 @@ __all__ = [
     "PerformanceReview",
     "KpiRecord",
     "PublicHoliday",
+    "TrainingPlan",
     "TrainingRecord",
+    "CompetencyAssessment",
 ]

@@ -23,6 +23,7 @@ from app.core.security import get_password_hash
 from app.models.app_setting import AppSetting
 from app.models.attendance.models import Attendance
 from app.models.hris import (
+    CompetencyAssessment,
     EmployeeHistory,
     EmployeeMovementRequest,
     EmployeeProfile,
@@ -32,11 +33,13 @@ from app.models.hris import (
     PublicHoliday,
     ScheduleChange,
     ShiftSchedule,
+    TrainingPlan,
     TrainingRecord,
 )
 from app.models.request import Request
 from app.models.user import User
 from app.schemas.hris import (
+    CompetencyAssessmentIn,
     EmployeeCreateIn,
     EmployeeHistoryIn,
     HrisLookupSettingsIn,
@@ -51,6 +54,7 @@ from app.schemas.hris import (
     PublicHolidayIn,
     ScheduleChangeIn,
     ShiftScheduleIn,
+    TrainingPlanIn,
     TrainingRecordIn,
 )
 
@@ -279,10 +283,10 @@ def _training_payload(row: TrainingRecord) -> dict:
         "employee_name": row.user.name if row.user else None,
         "title": row.title,
         "provider": row.provider,
-        "start_date": row.start_date,
+        "start_date": row.training_date,
         "end_date": row.end_date,
         "status": row.status,
-        "score": _money(row.score) if row.score is not None else None,
+        "score": float(row.score) if row.score is not None else None,
         "created_at": row.created_at,
     }
 
@@ -493,7 +497,7 @@ def my_profile(
     training_rows = (
         db.query(TrainingRecord)
         .filter(TrainingRecord.user_id == actor.id)
-        .order_by(TrainingRecord.start_date.desc(), TrainingRecord.created_at.desc())
+        .order_by(TrainingRecord.training_date.desc(), TrainingRecord.created_at.desc())
         .all()
     )
 
@@ -1085,7 +1089,233 @@ def create_public_holiday(
     return {"id": row.id, "message": "Holiday saved"}
 
 
-@router.post("/training")
+def _next_plan_id(db: Session) -> str:
+    last = db.query(TrainingPlan).order_by(TrainingPlan.id.desc()).first()
+    num = (last.id + 1) if last else 1
+    return f"TP-{num:04d}"
+
+
+def _training_plan_payload(row: TrainingPlan) -> dict:
+    return {
+        "id": row.id,
+        "plan_id": row.plan_id,
+        "title": row.title,
+        "category": row.category,
+        "training_type": row.training_type,
+        "training_year": row.training_year,
+        "objective": row.objective,
+        "department": row.department,
+        "position": row.position,
+        "employee_id": row.employee_id,
+        "employee_name": row.employee.name if row.employee else None,
+        "planned_start_date": row.planned_start_date.isoformat(),
+        "planned_end_date": row.planned_end_date.isoformat(),
+        "duration": row.duration,
+        "trainer": row.trainer,
+        "venue": row.venue,
+        "estimated_cost": _money(row.estimated_cost) if row.estimated_cost else None,
+        "actual_cost": _money(row.actual_cost) if row.actual_cost else None,
+        "requested_by": row.requested_by,
+        "requester_name": row.requester.name if row.requester else None,
+        "approval_status": row.approval_status,
+        "training_status": row.training_status,
+        "remarks": row.remarks,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+    }
+
+
+def _training_record_payload(row: TrainingRecord) -> dict:
+    return {
+        "id": row.id,
+        "user_id": row.user_id,
+        "plan_id": row.plan_id,
+        "employee_name": row.user.name if row.user else None,
+        "department": row.user.department if row.user else None,
+        "position": None,
+        "title": row.title,
+        "training_type": row.training_type,
+        "category": row.category,
+        "provider": row.provider,
+        "training_date": row.training_date.isoformat(),
+        "end_date": row.end_date.isoformat() if row.end_date else None,
+        "duration": float(row.duration) if row.duration else None,
+        "training_method": row.training_method,
+        "attendance_status": row.attendance_status,
+        "completion_status": row.completion_status,
+        "assessment_result": row.assessment_result,
+        "score": float(row.score) if row.score else None,
+        "skills_gained": row.skills_gained,
+        "certification": row.certification,
+        "related_kpi_id": row.related_kpi_id,
+        "related_job_role": row.related_job_role,
+        "certificate_file": row.certificate_file,
+        "feedback_file": row.feedback_file,
+        "verified_by": row.verified_by,
+        "verifier_name": row.verifier.name if row.verifier else None,
+        "status": row.status,
+        "remarks": row.remarks,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+    }
+
+
+def _competency_payload(row: CompetencyAssessment) -> dict:
+    return {
+        "id": row.id,
+        "user_id": row.user_id,
+        "employee_name": row.user.name if row.user else None,
+        "department": row.user.department if row.user else None,
+        "position": None,
+        "assessment_type": row.assessment_type,
+        "assessment_period_start": row.assessment_period_start.isoformat(),
+        "assessment_period_end": row.assessment_period_end.isoformat(),
+        "assessor_id": row.assessor_id,
+        "assessor_name": row.assessor.name if row.assessor else None,
+        "assessment_date": row.assessment_date.isoformat(),
+        "competency_model": row.competency_model,
+        "technical_skills": row.technical_skills,
+        "soft_skills": row.soft_skills,
+        "behavioral_competency": row.behavioral_competency,
+        "technical_score": float(row.technical_score),
+        "soft_skills_score": float(row.soft_skills_score),
+        "behavioral_score": float(row.behavioral_score),
+        "overall_score": float(row.overall_score) if row.overall_score else None,
+        "competency_level": row.competency_level,
+        "strengths": row.strengths,
+        "improvement_areas": row.improvement_areas,
+        "development_needs": row.development_needs,
+        "training_recommendation_id": row.training_recommendation_id,
+        "coaching_required": row.coaching_required,
+        "career_path_suggestion": row.career_path_suggestion,
+        "verified_by": row.verified_by,
+        "verifier_name": row.verifier_competency.name if row.verifier_competency else None,
+        "approval_status": row.approval_status,
+        "remarks": row.remarks,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+    }
+
+
+# ── Training Plans ──────────────────────────────────────────────
+
+
+@router.get("/training-plans")
+def list_training_plans(
+    year: int | None = None,
+    status: str | None = None,
+    department: str | None = None,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_roles(*HRIS_ROLES)),
+):
+    user_ids = _scope_ids(db, actor, include_self=True)
+    q = db.query(TrainingPlan).filter(TrainingPlan.requested_by.in_(user_ids))
+    if year:
+        q = q.filter(TrainingPlan.training_year == year)
+    if status:
+        q = q.filter(TrainingPlan.training_status == status)
+    if department:
+        q = q.filter(TrainingPlan.department == department)
+    return [_training_plan_payload(r) for r in q.order_by(TrainingPlan.created_at.desc()).all()]
+
+
+@router.post("/training-plans")
+def create_training_plan(
+    payload: TrainingPlanIn,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_roles(*HRIS_ROLES)),
+):
+    data = payload.model_dump()
+    data["requested_by"] = actor.id
+    data["plan_id"] = _next_plan_id(db)
+    if data.get("planned_start_date") and data.get("planned_end_date"):
+        delta = data["planned_end_date"] - data["planned_start_date"]
+        data["duration"] = delta.days
+    row = TrainingPlan(**data)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return _training_plan_payload(row)
+
+
+@router.get("/training-plans/{plan_id}")
+def get_training_plan(
+    plan_id: int,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_roles(*HRIS_ROLES)),
+):
+    row = db.query(TrainingPlan).filter(TrainingPlan.id == plan_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Training plan not found")
+    return _training_plan_payload(row)
+
+
+@router.put("/training-plans/{plan_id}")
+def update_training_plan(
+    plan_id: int,
+    payload: TrainingPlanIn,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_roles(*HRIS_ROLES)),
+):
+    row = db.query(TrainingPlan).filter(TrainingPlan.id == plan_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Training plan not found")
+    data = payload.model_dump()
+    if data.get("planned_start_date") and data.get("planned_end_date"):
+        delta = data["planned_end_date"] - data["planned_start_date"]
+        data["duration"] = delta.days
+    for k, v in data.items():
+        setattr(row, k, v)
+    row.requested_by = actor.id
+    db.commit()
+    db.refresh(row)
+    return _training_plan_payload(row)
+
+
+@router.delete("/training-plans/{plan_id}")
+def delete_training_plan(
+    plan_id: int,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_roles(*HRIS_ROLES)),
+):
+    row = db.query(TrainingPlan).filter(TrainingPlan.id == plan_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Training plan not found")
+    db.delete(row)
+    db.commit()
+    return {"message": "Training plan deleted"}
+
+
+# ── Training Records ────────────────────────────────────────────
+
+
+@router.get("/training-records")
+def list_training_records(
+    user_id: int | None = None,
+    status: str | None = None,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_roles(*HRIS_ROLES)),
+):
+    user_ids = _scope_ids(db, actor, include_self=True)
+    q = db.query(TrainingRecord).filter(TrainingRecord.user_id.in_(user_ids))
+    if user_id:
+        _ensure_target_in_scope(db, actor, user_id)
+        q = q.filter(TrainingRecord.user_id == user_id)
+    if status:
+        q = q.filter(TrainingRecord.status == status)
+    return [_training_record_payload(r) for r in q.order_by(TrainingRecord.training_date.desc()).all()]
+
+
+@router.get("/training-records/my")
+def my_training_records(
+    db: Session = Depends(get_db),
+    actor: User = Depends(get_current_user),
+):
+    rows = db.query(TrainingRecord).filter(TrainingRecord.user_id == actor.id).order_by(TrainingRecord.training_date.desc()).all()
+    return [_training_record_payload(r) for r in rows]
+
+
+@router.post("/training-records")
 def create_training_record(
     payload: TrainingRecordIn,
     db: Session = Depends(get_db),
@@ -1096,7 +1326,163 @@ def create_training_record(
     db.add(row)
     db.commit()
     db.refresh(row)
-    return {"id": row.id, "message": "Training record saved"}
+    return _training_record_payload(row)
+
+
+@router.put("/training-records/{record_id}")
+def update_training_record(
+    record_id: int,
+    payload: TrainingRecordIn,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_roles(*HRIS_ROLES)),
+):
+    _ensure_target_in_scope(db, actor, payload.user_id)
+    row = db.query(TrainingRecord).filter(TrainingRecord.id == record_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Training record not found")
+    for k, v in payload.model_dump().items():
+        setattr(row, k, v)
+    db.commit()
+    db.refresh(row)
+    return _training_record_payload(row)
+
+
+@router.delete("/training-records/{record_id}")
+def delete_training_record(
+    record_id: int,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_roles(*HRIS_ROLES)),
+):
+    row = db.query(TrainingRecord).filter(TrainingRecord.id == record_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Training record not found")
+    db.delete(row)
+    db.commit()
+    return {"message": "Training record deleted"}
+
+
+# ── Competency Assessments ──────────────────────────────────────
+
+
+@router.get("/competency-assessments")
+def list_competency_assessments(
+    user_id: int | None = None,
+    status: str | None = None,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_roles(*HRIS_ROLES)),
+):
+    user_ids = _scope_ids(db, actor, include_self=True)
+    q = db.query(CompetencyAssessment).filter(CompetencyAssessment.user_id.in_(user_ids))
+    if user_id:
+        _ensure_target_in_scope(db, actor, user_id)
+        q = q.filter(CompetencyAssessment.user_id == user_id)
+    if status:
+        q = q.filter(CompetencyAssessment.approval_status == status)
+    return [_competency_payload(r) for r in q.order_by(CompetencyAssessment.assessment_date.desc()).all()]
+
+
+@router.get("/competency-assessments/my")
+def my_competency_assessments(
+    db: Session = Depends(get_db),
+    actor: User = Depends(get_current_user),
+):
+    rows = db.query(CompetencyAssessment).filter(CompetencyAssessment.user_id == actor.id).order_by(CompetencyAssessment.assessment_date.desc()).all()
+    return [_competency_payload(r) for r in rows]
+
+
+@router.post("/competency-assessments")
+def create_competency_assessment(
+    payload: CompetencyAssessmentIn,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_roles(*HRIS_ROLES)),
+):
+    _ensure_target_in_scope(db, actor, payload.user_id)
+    data = payload.model_dump()
+    ts = Decimal(str(data.get("technical_score", 0)))
+    ss = Decimal(str(data.get("soft_skills_score", 0)))
+    bs = Decimal(str(data.get("behavioral_score", 0)))
+    data["overall_score"] = (ts + ss + bs) / Decimal("3")
+    row = CompetencyAssessment(**data)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return _competency_payload(row)
+
+
+@router.put("/competency-assessments/{assessment_id}")
+def update_competency_assessment(
+    assessment_id: int,
+    payload: CompetencyAssessmentIn,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_roles(*HRIS_ROLES)),
+):
+    _ensure_target_in_scope(db, actor, payload.user_id)
+    row = db.query(CompetencyAssessment).filter(CompetencyAssessment.id == assessment_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Competency assessment not found")
+    data = payload.model_dump()
+    ts = Decimal(str(data.get("technical_score", 0)))
+    ss = Decimal(str(data.get("soft_skills_score", 0)))
+    bs = Decimal(str(data.get("behavioral_score", 0)))
+    data["overall_score"] = (ts + ss + bs) / Decimal("3")
+    for k, v in data.items():
+        setattr(row, k, v)
+    db.commit()
+    db.refresh(row)
+    return _competency_payload(row)
+
+
+@router.delete("/competency-assessments/{assessment_id}")
+def delete_competency_assessment(
+    assessment_id: int,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_roles(*HRIS_ROLES)),
+):
+    row = db.query(CompetencyAssessment).filter(CompetencyAssessment.id == assessment_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Competency assessment not found")
+    db.delete(row)
+    db.commit()
+    return {"message": "Competency assessment deleted"}
+
+
+@router.get("/training/dashboard")
+def training_dashboard(
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_roles(*HRIS_ROLES)),
+):
+    user_ids = _scope_ids(db, actor, include_self=True)
+    total_plans = db.query(TrainingPlan).filter(TrainingPlan.requested_by.in_(user_ids)).count()
+    ongoing = db.query(TrainingPlan).filter(TrainingPlan.requested_by.in_(user_ids), TrainingPlan.training_status == "Ongoing").count()
+    completed = db.query(TrainingPlan).filter(TrainingPlan.requested_by.in_(user_ids), TrainingPlan.training_status == "Completed").count()
+    pending = db.query(TrainingPlan).filter(TrainingPlan.requested_by.in_(user_ids), TrainingPlan.approval_status == "Pending").count()
+    participants = db.query(TrainingRecord).filter(TrainingRecord.user_id.in_(user_ids)).count()
+    budget = db.query(
+        func.coalesce(func.sum(TrainingPlan.estimated_cost), 0),
+        func.coalesce(func.sum(TrainingPlan.actual_cost), 0),
+    ).filter(TrainingPlan.requested_by.in_(user_ids)).first()
+    dept_rows = (
+        db.query(TrainingPlan.department, func.count(TrainingPlan.id))
+        .filter(TrainingPlan.requested_by.in_(user_ids))
+        .group_by(TrainingPlan.department)
+        .all()
+    )
+    upcoming = db.query(TrainingPlan).filter(
+        TrainingPlan.requested_by.in_(user_ids),
+        TrainingPlan.training_status.in_(["Planned", "Ongoing"]),
+        TrainingPlan.planned_start_date >= date.today(),
+    ).count()
+    return {
+        "total_plans": total_plans,
+        "ongoing": ongoing,
+        "completed": completed,
+        "pending_approval": pending,
+        "participants": participants,
+        "budget_estimated": _money(budget[0]) if budget else "0",
+        "budget_actual": _money(budget[1]) if budget else "0",
+        "by_department": [{"department": d or "Unassigned", "count": c} for d, c in dept_rows],
+        "upcoming": upcoming,
+    }
 
 
 @router.get("/reports")
@@ -1139,7 +1525,10 @@ def reports(
             "early_leave": attendance_query.filter(Attendance.is_early_checkout == True).count(),
         },
         "training": {
-            "planned": db.query(TrainingRecord).filter(TrainingRecord.user_id.in_(user_ids), TrainingRecord.status == "planned").count(),
-            "completed": db.query(TrainingRecord).filter(TrainingRecord.user_id.in_(user_ids), TrainingRecord.status == "completed").count(),
+            "planned": db.query(TrainingPlan).filter(TrainingPlan.requested_by.in_(user_ids), TrainingPlan.training_status == "Planned").count(),
+            "ongoing": db.query(TrainingPlan).filter(TrainingPlan.requested_by.in_(user_ids), TrainingPlan.training_status == "Ongoing").count(),
+            "completed": db.query(TrainingPlan).filter(TrainingPlan.requested_by.in_(user_ids), TrainingPlan.training_status == "Completed").count(),
+            "records": db.query(TrainingRecord).filter(TrainingRecord.user_id.in_(user_ids)).count(),
+            "completed_records": db.query(TrainingRecord).filter(TrainingRecord.user_id.in_(user_ids), TrainingRecord.completion_status == "Completed").count(),
         },
     }
