@@ -81,17 +81,7 @@ const ShiftSetupTab = ({ shifts, onEdit, onDelete, onAdd, canManage }) => (
       </div>
     </div>
 
-    <div className="rounded-xl bg-white p-6 shadow-sm">
-      <h3 className="mb-4 text-lg font-extrabold text-slate-900">Shift Type Master</h3>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {SHIFT_TYPES.map(([key, label]) => (
-          <div key={key} className="rounded-lg border border-slate-200 p-4">
-            <p className="font-bold text-slate-900">{label}</p>
-            <p className="mt-1 text-xs text-slate-500">{key === "fixed" ? "Same working hours every day" : key === "rotational" ? "Rotating shift schedule" : key === "flexible" ? "Flexible working hours" : key === "night" ? "Overnight working schedule" : "Multiple working periods in one day"}</p>
-          </div>
-        ))}
-      </div>
-    </div>
+
   </div>
 );
 
@@ -504,24 +494,9 @@ export default function ShiftPage() {
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
         {employeesByShiftType.map(({ type, label, employees }) => (
           <div key={type} className="rounded-xl bg-white p-5 shadow-sm">
-            <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center justify-between">
               <h4 className="text-base font-extrabold text-slate-900">{label}</h4>
               <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-blue-700">{employees.length}</span>
-            </div>
-            <div className="space-y-2 max-h-[260px] overflow-y-auto">
-              {employees.length === 0 ? (
-                <p className="text-sm text-slate-400">No employees</p>
-              ) : employees.map((emp) => (
-                <div key={emp.id} className="flex items-center gap-2 rounded-lg hover:bg-slate-50">
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-200 text-xs font-bold text-slate-600">
-                    {emp.name?.[0] || "?"}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-slate-900">{emp.name}</p>
-                    <p className="truncate text-[11px] font-semibold text-slate-500">{emp.code}{emp.department ? ` · ${emp.department}` : ""}</p>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         ))}
@@ -541,22 +516,9 @@ export default function ShiftPage() {
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {employeesByShift.map(({ shiftName, employees }) => (
           <div key={shiftName} className="rounded-xl bg-white p-5 shadow-sm">
-            <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center justify-between">
               <h4 className="text-base font-extrabold text-slate-900">{shiftName}</h4>
               <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-blue-700">{employees.length}</span>
-            </div>
-            <div className="space-y-2 max-h-[260px] overflow-y-auto">
-              {employees.map((emp) => (
-                <div key={emp.id} className="flex items-center gap-2 rounded-lg hover:bg-slate-50">
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-200 text-xs font-bold text-slate-600">
-                    {emp.name?.[0] || "?"}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-slate-900">{emp.name}</p>
-                    <p className="truncate text-[11px] font-semibold text-slate-500">{emp.code}{emp.department ? ` · ${emp.department}` : ""}</p>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         ))}

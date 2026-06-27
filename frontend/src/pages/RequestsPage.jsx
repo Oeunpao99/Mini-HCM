@@ -9,6 +9,7 @@ import {
   FiChevronLeft,
   FiClock,
   FiDownload,
+  FiEdit2,
   FiEye,
   FiFilter,
   FiPlus,
@@ -846,6 +847,29 @@ const RequestsPage = () => {
       { name: "Special Leave", value: Math.max(0, totalSpecial - usedSpecial), color: leaveTypeColors.special },
       { name: "Business Leave", value: Math.max(0, totalBusiness - usedBusiness), color: leaveTypeColors.business },
     ];
+    const totalUsed = usedAnnual + usedSick + usedMaternity + usedPaternity + usedMarriage + usedCompassionate + usedUnpaid + usedSpecial + usedBusiness;
+    const totalEntitlement = totalAnnual + totalSick + totalMaternity + totalPaternity + totalMarriage + totalCompassionate + totalUnpaid + totalSpecial + totalBusiness;
+    const leaveUtilizationRate = totalEntitlement > 0 ? Math.round((totalUsed / totalEntitlement) * 100) : 0;
+
+    const leaveByDepartment = [];
+    const deptLeaveMap = new Map();
+    leaveRequests.filter((r) => r.status === "approved").forEach((r) => {
+      const u = userById.get(r.user_id);
+      const dept = u?.department || "Unassigned";
+      const days = getRequestDays(r);
+      deptLeaveMap.set(dept, (deptLeaveMap.get(dept) || 0) + days);
+    });
+    deptLeaveMap.forEach((days, dept) => leaveByDepartment.push({ department: dept, days: Math.round(days * 10) / 10 }));
+
+    const lowBalanceEmployees = filteredUsers.filter((u) => {
+      const entitlements = getUserEntitlements(u.id);
+      const annualEntitle = Number(entitlements.annual || 0);
+      const userLeaveRequests = leaveRequests.filter((r) => r.user_id === u.id && r.status === "approved" && String(r.leave_type || "annual").includes("annual"));
+      const used = userLeaveRequests.reduce((sum, r) => sum + getRequestDays(r), 0);
+      const remaining = annualEntitle - used;
+      return remaining < 3 && remaining >= 0;
+    }).length;
+
     const trend = Array.from({ length: 6 }, (_, index) => {
       const date = new Date(year, month - 6 + index, 1);
       const key = monthKey(date);
@@ -923,6 +947,10 @@ const RequestsPage = () => {
       pendingOtHours,
       totalBalance: balanceData.reduce((sum, item) => sum + item.value, 0),
       balanceData,
+      leaveUtilizationRate,
+      leaveByDepartment,
+      lowBalanceEmployees,
+      annualLeaveBalance: Math.max(0, totalAnnual - usedAnnual),
       typeData,
       trend,
       selectedMonthRequests,
@@ -1879,6 +1907,20 @@ const RequestsPage = () => {
                 </div>
               )}
 
+              {requestType === "leave" && (
+                <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+                  <LeaveStatCard label="Employees on Leave Today" value={managementStats.onLeaveToday} helper="Current employees on leave" icon={FiUsers} tone="bg-violet-600 text-white" />
+                  <LeaveStatCard label="Leave Requests Pending Approval" value={managementStats.pending} helper="Awaiting approval" icon={FiClock} tone="bg-amber-500 text-white" />
+                  <LeaveStatCard label="Approved Leave Requests" value={managementStats.approved} helper="Approved leave applications" icon={FiCheckCircle} tone="bg-emerald-600 text-white" />
+                  <LeaveStatCard label="Rejected Leave Requests" value={managementStats.rejected} helper="Rejected applications" icon={FiXCircle} tone="bg-rose-500 text-white" />
+                  <LeaveStatCard label="Leave Utilization Rate" value={`${managementStats.leaveUtilizationRate}%`} helper="Leave usage percentage" icon={FiBarChart2} tone="bg-blue-600 text-white" />
+                  <LeaveStatCard label="Annual Leave Balance Summary" value={managementStats.annualLeaveBalance} helper="Remaining leave balances" icon={FiCalendar} tone="bg-teal-600 text-white" />
+                  <LeaveStatCard label="Leave by Department" value={managementStats.leaveByDepartment.length} helper="Leave distribution by department" icon={FiUsers} tone="bg-indigo-600 text-white" />
+                  <LeaveStatCard label="Monthly Leave Trend" value={`${managementStats.trend.length} months`} helper="Leave utilization trend" icon={FiBarChart2} tone="bg-cyan-600 text-white" />
+                  <LeaveStatCard label="Employees with Low Leave Balance" value={managementStats.lowBalanceEmployees} helper="Remaining balance alert" icon={FiAlertCircle} tone="bg-rose-500 text-white" />
+                </div>
+              )}
+
               <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
                 <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
                   <FiFilter className="h-4 w-4" />
@@ -2401,90 +2443,141 @@ const ApprovalFlowSettings = ({ flow, onToggleStage, onMoveStage, onSave, saving
   );
 };
 
-const LeaveEntitlementPanel = ({ users, drafts, onDraftChange, onSave, savingId, canEdit }) => (
-  <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-    <div className="border-b border-slate-100 p-5">
-      <h2 className="text-lg font-extrabold text-[#11164a]">Employee Leave Entitlement</h2>
-      <p className="mt-1 text-sm font-semibold text-slate-500">
-        Set custom leave amounts per employee. Saved values are used in leave balance calculations.
-      </p>
-      {!canEdit && (
-        <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm font-bold text-amber-700">
-          Only HR and managers can edit leave entitlements.
-        </p>
-      )}
-    </div>
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[1320px] text-left text-sm">
-        <thead className="bg-slate-50 text-xs font-extrabold uppercase text-[#11164a]">
-          <tr>
-            <th className="sticky left-0 z-10 bg-slate-50 px-5 py-4">Employee</th>
-            <th className="px-4 py-4">Department</th>
-            {leaveEntitlementFields.map((field) => (
-              <th key={field.key} className="px-3 py-4">{field.label}</th>
-            ))}
-            <th className="sticky right-0 z-10 bg-slate-50 px-5 py-4 text-right">Action</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {users.map((user) => {
-            const draft = {
-              ...defaultLeaveEntitlements,
-              ...(drafts[user.id] || {}),
-            };
-            return (
-              <tr key={user.id} className="hover:bg-slate-50/70">
-                <td className="sticky left-0 bg-white px-5 py-4">
-                  <div className="flex items-center gap-3">
-                    <span className="grid h-9 w-9 place-items-center rounded-full bg-slate-200 text-xs font-extrabold text-[#11164a]">
-                      {String(user.name || "U").split(" ").map((part) => part[0]).join("").slice(0, 2)}
-                    </span>
-                    <div>
-                      <p className="font-extrabold text-[#11164a]">{user.name}</p>
-                      <p className="text-xs font-bold text-slate-500">{user.emp_code}</p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-4 py-4 font-semibold text-slate-600">{user.department || "-"}</td>
-                {leaveEntitlementFields.map((field) => (
-                  <td key={field.key} className="px-3 py-4">
-                    <input
-                      type="number"
-                      min="0"
-                      max="365"
-                      step="0.5"
-                      value={draft[field.key] ?? 0}
-                      onChange={(event) => onDraftChange(user.id, field.key, event.target.value)}
-                      disabled={!canEdit}
-                      className="h-10 w-24 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-[#11164a] outline-none focus:border-[#5b21e8]"
-                    />
-                  </td>
-                ))}
-                <td className="sticky right-0 bg-white px-5 py-4 text-right">
-                  <button
-                    type="button"
-                    onClick={() => onSave(user.id)}
-                    disabled={!canEdit || savingId === user.id}
-                    className="h-10 rounded-md bg-[#5b21e8] px-4 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
-                  >
-                    {savingId === user.id ? "Saving..." : "Save"}
-                  </button>
-                </td>
-              </tr>
-            );
-          })}
-          {users.length === 0 && (
-            <tr>
-              <td colSpan={leaveEntitlementFields.length + 3} className="px-5 py-10 text-center text-sm font-bold text-slate-400">
-                No employees found for the current filters.
-              </td>
-            </tr>
+const LeaveEntitlementPanel = ({ users, drafts, onDraftChange, onSave, savingId, canEdit }) => {
+  const [editingUser, setEditingUser] = useState(null);
+  const editingDraft = editingUser
+    ? { ...defaultLeaveEntitlements, ...(drafts[editingUser.id] || {}) }
+    : null;
+
+  const totalDays = (userId) => {
+    const draft = { ...defaultLeaveEntitlements, ...(drafts[userId] || {}) };
+    return leaveEntitlementFields.reduce((sum, field) => sum + Number(draft[field.key] || 0), 0);
+  };
+
+  const saveEditingUser = async () => {
+    if (!editingUser) return;
+    await onSave(editingUser.id);
+    setEditingUser(null);
+  };
+
+  return (
+    <>
+      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 p-5">
+          <h2 className="text-lg font-extrabold text-[#11164a]">Employee Leave Entitlement</h2>
+          <p className="mt-1 text-sm font-semibold text-slate-500">
+            Review employee information and use the edit action to adjust leave amounts.
+          </p>
+          {!canEdit && (
+            <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm font-bold text-amber-700">
+              Only HR and managers can edit leave entitlements.
+            </p>
           )}
-        </tbody>
-      </table>
-    </div>
-  </section>
-);
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[960px] text-left text-sm">
+            <thead className="bg-slate-50 text-xs font-extrabold uppercase text-[#11164a]">
+              <tr>
+                <th className="px-5 py-4">Employee ID</th>
+                <th className="px-5 py-4">Employee Name</th>
+                <th className="px-5 py-4">Department</th>
+                <th className="px-5 py-4">Unit</th>
+                <th className="px-5 py-4">Total Leave Days</th>
+                <th className="px-5 py-4 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {users.map((user) => (
+                <tr key={user.id} className="hover:bg-slate-50/70">
+                  <td className="px-5 py-4 font-extrabold text-[#11164a]">{user.emp_code || "-"}</td>
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-9 w-9 place-items-center rounded-full bg-slate-200 text-xs font-extrabold text-[#11164a]">
+                        {String(user.name || "U").split(" ").map((part) => part[0]).join("").slice(0, 2)}
+                      </span>
+                      <span className="font-extrabold text-[#11164a]">{user.name || "-"}</span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4 font-semibold text-slate-600">{user.department || "-"}</td>
+                  <td className="px-5 py-4 font-semibold text-slate-600">{user.sub_department || "-"}</td>
+                  <td className="px-5 py-4 font-extrabold text-[#11164a]">{totalDays(user.id)}</td>
+                  <td className="px-5 py-4 text-right">
+                    <button
+                      type="button"
+                      onClick={() => setEditingUser(user)}
+                      disabled={!canEdit}
+                      className="inline-grid h-9 w-9 place-items-center rounded-md text-[#11164a] hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                      title="Edit leave entitlement"
+                      aria-label={`Edit leave entitlement for ${user.name}`}
+                    >
+                      <FiEdit2 className="h-4 w-4" aria-hidden />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {users.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-5 py-10 text-center text-sm font-bold text-slate-400">
+                    No employees found for the current filters.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {editingUser && editingDraft && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setEditingUser(null)}>
+          <div className="mx-4 max-h-[86vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(event) => event.stopPropagation()}>
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-extrabold text-[#11164a]">Edit Leave Entitlement</h2>
+                <p className="mt-1 text-sm font-bold text-slate-500">
+                  {editingUser.name} / {editingUser.emp_code || "-"} / {editingUser.department || "-"}
+                </p>
+              </div>
+              <button type="button" onClick={() => setEditingUser(null)} className="grid h-9 w-9 place-items-center rounded-full text-slate-600 hover:bg-slate-100">
+                <FiX className="h-5 w-5" aria-hidden />
+              </button>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              {leaveEntitlementFields.map((field) => (
+                <label key={field.key} className="block">
+                  <span className="text-xs font-extrabold uppercase text-slate-500">{field.label}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="365"
+                    step="0.5"
+                    value={editingDraft[field.key] ?? 0}
+                    onChange={(event) => onDraftChange(editingUser.id, field.key, event.target.value)}
+                    className="mt-2 h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-[#11164a] outline-none focus:border-[#5b21e8]"
+                  />
+                </label>
+              ))}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" onClick={() => setEditingUser(null)} className="h-10 rounded-md border border-slate-200 px-5 text-sm font-extrabold text-slate-600 hover:bg-slate-50">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveEditingUser}
+                disabled={savingId === editingUser.id}
+                className="h-10 rounded-md bg-[#5b21e8] px-5 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {savingId === editingUser.id ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
 
 const LeaveBalancePanel = ({ balanceData, mode, totalBalance, usersCount }) => {
   const entitlementRows = [
