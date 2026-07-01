@@ -118,17 +118,16 @@ export const formatContract = (value) => {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 };
 
-export const StatCard = ({ label, value, icon: Icon, tone }) => (
-  <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+export const StatCard = ({ label, value, helper, icon: Icon, tone }) => (
+  <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
     <div className="flex items-center gap-4">
-      <span className={`grid h-14 w-14 place-items-center rounded-2xl ${tone}`}>
+      <span className={`grid h-14 w-14 shrink-0 place-items-center rounded-lg ${tone}`}>
         <Icon className="h-7 w-7" aria-hidden />
       </span>
-      <div>
-        <p className="text-sm font-semibold text-slate-500">{label}</p>
-        <p className="mt-1 text-3xl font-extrabold leading-none text-slate-950">
-          {value}
-        </p>
+      <div className="min-w-0">
+        <p className="text-sm font-extrabold text-[#111b4f]">{label}</p>
+        <p className="mt-1 text-3xl font-extrabold leading-none text-[#111b4f]">{value}</p>
+        {helper && <p className="mt-1 text-sm font-extrabold text-slate-500">{helper}</p>}
       </div>
     </div>
   </div>

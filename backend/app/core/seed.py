@@ -300,11 +300,11 @@ def _seed_hris_data(db: Session, users: list[User], reviewer_id: int, payroll_of
                 PerformanceReview(
                     user_id=user.id,
                     reviewer_id=reviewer_id,
-                    review_period="2026-Q2",
-                    score=Decimal("86.00"),
-                    rating="meets_expectations",
-                    comments="Seed appraisal for HRIS dashboard testing.",
-                    status="completed",
+                    review_period="Semester 1",
+                    total_score=Decimal("86.00"),
+                    performance_rating="Meets Expectations",
+                    manager_comments="Seed appraisal for HRIS dashboard testing.",
+                    review_status="Approved",
                 )
             )
 

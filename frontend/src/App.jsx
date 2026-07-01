@@ -15,6 +15,7 @@ import RequestsPage from "./pages/RequestsPage";
 import SelfServicePage from "./pages/SelfServicePage";
 import ShiftPage from "./pages/ShiftPage";
 import SwapPage from "./pages/SwapPage";
+import PerformancePage from "./pages/PerformancePage";
 import TrainingPage from "./pages/TrainingPage";
 
 const App = () => {
@@ -109,6 +110,19 @@ const App = () => {
           <ProtectedRoute>
             <Layout>
               <TrainingPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/performance"
+        element={
+          <ProtectedRoute
+            roles={["line_manager", "department_head", "management_hr", "payroll_officer"]}
+          >
+            <Layout>
+              <PerformancePage />
             </Layout>
           </ProtectedRoute>
         }

@@ -1013,10 +1013,10 @@ export default function HrisPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <StatCard label="Total Employees" value={dashboard?.total_employees ?? employees.length} icon={FiUsers} tone="bg-blue-50 text-blue-600" />
-              <StatCard label="Active Employees" value={dashboard?.active_profiles ?? activeCount} icon={FiUserCheck} tone="bg-emerald-50 text-emerald-600" />
-              <StatCard label="On Leave" value={leaveCount} icon={FiUserMinus} tone="bg-amber-50 text-amber-600" />
-              <StatCard label="Resigned/Inactive" value={inactiveCount} icon={FiUserMinus} tone="bg-red-50 text-red-600" />
+              <StatCard label="Total Employees" value={dashboard?.total_employees ?? employees.length} icon={FiUsers} tone="bg-blue-600 text-white" />
+              <StatCard label="Active Employees" value={dashboard?.active_profiles ?? activeCount} icon={FiUserCheck} tone="bg-emerald-600 text-white" />
+              <StatCard label="On Leave" value={leaveCount} icon={FiUserMinus} tone="bg-amber-500 text-white" />
+              <StatCard label="Resigned/Inactive" value={inactiveCount} icon={FiUserMinus} tone="bg-red-500 text-white" />
             </div>
 
             <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">

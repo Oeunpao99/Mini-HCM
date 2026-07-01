@@ -23,12 +23,16 @@ from app.core.security import get_password_hash
 from app.models.app_setting import AppSetting
 from app.models.attendance.models import Attendance
 from app.models.hris import (
+    CareerDevelopment,
     CompetencyAssessment,
     EmployeeHistory,
     EmployeeMovementRequest,
     EmployeeProfile,
+    KpiMonitoring,
+    KpiPlan,
     KpiRecord,
     PayrollRecord,
+    PerformanceImprovementPlan,
     PerformanceReview,
     PublicHoliday,
     ScheduleChange,
@@ -266,13 +270,38 @@ def _performance_payload(row: PerformanceReview) -> dict:
         "id": row.id,
         "user_id": row.user_id,
         "employee_name": row.user.name if row.user else None,
+        "department": row.user.department if row.user else None,
+        "position": row.user.profile.position if row.user and row.user.profile else None,
         "review_period": row.review_period,
-        "score": _money(row.score),
-        "rating": row.rating,
-        "comments": row.comments,
-        "status": row.status,
-        "reviewed_at": row.reviewed_at,
+        "start_date": row.start_date,
+        "end_date": row.end_date,
+        "reviewer_id": row.reviewer_id,
+        "reviewer_name": row.reviewer.name if row.reviewer else None,
+        "score": _money(row.total_score) if row.total_score else None,
+        "rating": row.performance_rating,
+        "comments": row.manager_comments,
+        "status": row.review_status,
+        "kpi_score": _money(row.kpi_score) if row.kpi_score else None,
+        "kpi_weight": _money(row.kpi_weight) if row.kpi_weight else None,
+        "competency_score": _money(row.competency_score) if row.competency_score else None,
+        "behavior_score": _money(row.behavior_score) if row.behavior_score else None,
+        "attendance_score": _money(row.attendance_score) if row.attendance_score else None,
+        "total_score": _money(row.total_score) if row.total_score else None,
+        "performance_rating": row.performance_rating,
+        "self_assessment": row.self_assessment,
+        "manager_comments": row.manager_comments,
+        "strengths": row.strengths,
+        "improvement_areas": row.improvement_areas,
+        "development_action_plan": row.development_action_plan,
+        "promotion_recommendation": row.promotion_recommendation,
+        "salary_increment_recommendation": row.salary_increment_recommendation,
+        "pip_required": row.pip_required,
+        "review_status": row.review_status or "Draft",
+        "final_decision": row.final_decision,
+        "remarks": row.remarks,
+        "reviewed_at": row.created_at,
         "created_at": row.created_at,
+        "updated_at": row.updated_at,
     }
 
 
@@ -1045,11 +1074,17 @@ def create_performance_review(
     actor: User = Depends(require_roles(LINE_MANAGER_ROLE, DEPARTMENT_HEAD_ROLE, MANAGEMENT_HR_ROLE)),
 ):
     _ensure_target_in_scope(db, actor, payload.user_id)
-    row = PerformanceReview(**payload.model_dump(), reviewer_id=actor.id)
+    data = payload.model_dump()
+    data["total_score"] = data.pop("score", None)
+    data["performance_rating"] = data.pop("rating", None)
+    data["manager_comments"] = data.pop("comments", None)
+    data["review_status"] = data.pop("status", "Draft")
+    data["reviewer_id"] = actor.id
+    row = PerformanceReview(**data)
     db.add(row)
     db.commit()
     db.refresh(row)
-    return {"id": row.id, "message": "Performance review saved"}
+    return _performance_payload(row)
 
 
 @router.get("/performance")

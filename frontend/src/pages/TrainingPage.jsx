@@ -1,12 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import {
   FiBookOpen,
   FiCheckCircle,
   FiClock,
   FiDollarSign,
   FiEdit2,
-  FiFileText,
-  FiGrid,
   FiList,
   FiPlus,
   FiTrash2,
@@ -29,7 +28,7 @@ import {
 } from "recharts";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
-import { money, StatCard, Field, inputClass } from "./hris/HrisCommon";
+import { Field, inputClass } from "./hris/HrisCommon";
 
 const TRAINING_CATEGORIES = ["Orientation", "Technical", "Soft Skill", "Compliance", "Leadership"];
 const TRAINING_TYPES = ["Internal", "External", "Online", "Classroom", "Workshop", "Seminar"];
@@ -42,17 +41,6 @@ const RECORD_STATUSES = ["Draft", "Approved", "Rejected"];
 const ASSESSMENT_TYPES = ["Annual", "Probation", "Promotion", "Ad-hoc"];
 const COMPETENCY_LEVELS = ["Beginner", "Intermediate", "Advanced", "Expert"];
 const ASSESSMENT_STATUSES = ["Draft", "Submitted", "In Review", "Approved", "Rejected", "Completed"];
-
-const TabButton = ({ active, onClick, children }) => (
-  <button
-    onClick={onClick}
-    className={`h-12 border-b-2 px-4 text-sm font-extrabold whitespace-nowrap ${
-      active ? "border-[#166432] text-[#166432]" : "border-transparent text-slate-500 hover:text-slate-900"
-    }`}
-  >
-    {children}
-  </button>
-);
 
 const Modal = ({ open, onClose, title, children }) => {
   if (!open) return null;
@@ -96,7 +84,14 @@ const emptyAssessmentForm = () => ({
 
 const TrainingPage = () => {
   const { userId } = useAuth();
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const location = useLocation();
+  const initialTab = new URLSearchParams(location.search).get("tab") || "dashboard";
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    const tabFromUrl = new URLSearchParams(location.search).get("tab") || "dashboard";
+    setActiveTab(tabFromUrl);
+  }, [location.search]);
   const [loading, setLoading] = useState(false);
   const [plans, setPlans] = useState([]);
   const [records, setRecords] = useState([]);
@@ -239,7 +234,14 @@ const TrainingPage = () => {
     <div className="min-h-[calc(100vh-4rem)] bg-[#f5f7fb] px-4 py-5 md:px-6">
       <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-2xl font-extrabold text-slate-900">Training & Development</h1>
+          <h1 className="text-2xl font-extrabold text-slate-900">
+            Training & Development
+            {activeTab !== "dashboard" && (
+              <span className="ml-2 text-lg font-semibold text-slate-500">
+                / {activeTab === "plans" ? "Training Plans" : activeTab === "records" ? "Training Records" : "Competency Assessment"}
+              </span>
+            )}
+          </h1>
           <div className="flex gap-2">
             {activeTab !== "dashboard" && (
               <button
@@ -252,20 +254,7 @@ const TrainingPage = () => {
           </div>
         </div>
 
-        <div className="flex gap-0 overflow-x-auto border-b border-slate-200">
-          <TabButton active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")}>
-            <FiGrid className="mr-1.5 inline h-4 w-4" /> Dashboard
-          </TabButton>
-          <TabButton active={activeTab === "plans"} onClick={() => setActiveTab("plans")}>
-            <FiBookOpen className="mr-1.5 inline h-4 w-4" /> Training Plans
-          </TabButton>
-          <TabButton active={activeTab === "records"} onClick={() => setActiveTab("records")}>
-            <FiFileText className="mr-1.5 inline h-4 w-4" /> Training Records
-          </TabButton>
-          <TabButton active={activeTab === "competency"} onClick={() => setActiveTab("competency")}>
-            <FiTrendingUp className="mr-1.5 inline h-4 w-4" /> Competency Assessment
-          </TabButton>
-        </div>
+
 
         {activeTab === "dashboard" && (
           <DashboardView dashboard={dashboard} loading={loading} />
@@ -299,19 +288,34 @@ const TrainingPage = () => {
   );
 };
 
+const DashboardStatCard = ({ label, value, helper, icon: Icon, tone }) => (
+  <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="flex items-center gap-4">
+      <span className={`grid h-14 w-14 shrink-0 place-items-center rounded-lg ${tone}`}>
+        <Icon className="h-7 w-7" aria-hidden />
+      </span>
+      <div className="min-w-0">
+        <p className="text-sm font-extrabold text-[#111b4f]">{label}</p>
+        <p className="mt-1 text-3xl font-extrabold leading-none text-[#111b4f]">{value}</p>
+        {helper && <p className="mt-1 text-sm font-extrabold text-slate-500">{helper}</p>}
+      </div>
+    </div>
+  </div>
+);
+
 const DashboardView = ({ dashboard, loading }) => {
   if (loading || !dashboard) {
     return <div className="mt-10 text-center text-sm font-bold text-slate-400">Loading dashboard...</div>;
   }
   const widgets = [
-    { label: "Annual Training Plan", value: dashboard.total_plans, icon: FiBookOpen, tone: "bg-blue-100 text-blue-600" },
-    { label: "Active Training Programs", value: dashboard.ongoing, icon: FiClock, tone: "bg-amber-100 text-amber-600" },
-    { label: "Completed Training", value: dashboard.completed, icon: FiCheckCircle, tone: "bg-emerald-100 text-emerald-600" },
-    { label: "Pending Approval", value: dashboard.pending_approval, icon: FiUserCheck, tone: "bg-violet-100 text-violet-600" },
-    { label: "Training Participants", value: dashboard.participants, icon: FiUserPlus, tone: "bg-cyan-100 text-cyan-600" },
-    { label: "Estimated Budget", value: `$${money(dashboard.budget_estimated)}`, icon: FiDollarSign, tone: "bg-indigo-100 text-indigo-600" },
-    { label: "Actual Cost", value: `$${money(dashboard.budget_actual)}`, icon: FiDollarSign, tone: "bg-rose-100 text-rose-600" },
-    { label: "Upcoming Training", value: dashboard.upcoming, icon: FiTrendingUp, tone: "bg-teal-100 text-teal-600" },
+    { label: "Annual Training Plan", value: dashboard.total_plans, icon: FiBookOpen, tone: "bg-blue-600 text-white" },
+    { label: "Active Programs", value: dashboard.ongoing, icon: FiClock, tone: "bg-amber-500 text-white" },
+    { label: "Completed Training", value: dashboard.completed, icon: FiCheckCircle, tone: "bg-emerald-600 text-white" },
+    { label: "Pending Approval", value: dashboard.pending_approval, icon: FiUserCheck, tone: "bg-violet-600 text-white" },
+    { label: "Participants", value: dashboard.participants, icon: FiUserPlus, tone: "bg-cyan-600 text-white" },
+    { label: "Est. Budget", value: `$${Number(dashboard.budget_estimated || 0).toLocaleString()}`, icon: FiDollarSign, tone: "bg-indigo-600 text-white" },
+    { label: "Actual Cost", value: `$${Number(dashboard.budget_actual || 0).toLocaleString()}`, icon: FiDollarSign, tone: "bg-rose-600 text-white" },
+    { label: "Upcoming", value: dashboard.upcoming, icon: FiTrendingUp, tone: "bg-teal-600 text-white" },
   ];
 
   const COLORS = ["#166432", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899", "#14b8a6"];
@@ -327,52 +331,60 @@ const DashboardView = ({ dashboard, loading }) => {
   ];
 
   return (
-    <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {widgets.map((w) => (
-        <StatCard key={w.label} label={w.label} value={w.value} icon={w.icon} tone={w.tone} />
-      ))}
+    <div>
+      <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-4">
+        {widgets.map((w) => (
+          <DashboardStatCard key={w.label} label={w.label} value={w.value} icon={w.icon} tone={w.tone} />
+        ))}
+      </div>
 
-      <div className="col-span-full grid gap-4 lg:grid-cols-3">
+      <div className="mt-4 grid gap-4 xl:grid-cols-3">
         {deptData.length > 0 && (
           <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="mb-3 text-sm font-extrabold text-slate-700">Training by Department</h3>
-            <ResponsiveContainer width="100%" height={240}>
+            <h3 className="mb-3 text-lg font-extrabold text-[#111b4f]">Training by Department</h3>
+            <div className="h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={deptData} dataKey="count" nameKey="department" cx="50%" cy="50%" outerRadius={80} innerRadius={50} label={({ department, count }) => `${department}: ${count}`}>
+                    {deptData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <h3 className="mb-3 text-lg font-extrabold text-[#111b4f]">Budget Overview</h3>
+          <div className="h-[260px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={budgetData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="name" tick={{ fontSize: 12, fontWeight: 600, fill: "#111b4f" }} />
+                <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
+                <Tooltip formatter={(v) => `$${Number(v).toLocaleString()}`} />
+                <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                  <Cell fill="#166432" />
+                  <Cell fill="#ef4444" />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <h3 className="mb-3 text-lg font-extrabold text-[#111b4f]">Training Status</h3>
+          <div className="h-[260px]">
+            <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={deptData} dataKey="count" nameKey="department" cx="50%" cy="50%" outerRadius={80} innerRadius={50} label={({ department, count }) => `${department}: ${count}`}>
-                  {deptData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} innerRadius={50} label={({ name, value }) => `${name}: ${value}`}>
+                  {statusData.map((_, i) => <Cell key={i} fill={[COLORS[0], COLORS[2], COLORS[1]][i]} />)}
                 </Pie>
                 <Tooltip />
               </PieChart>
             </ResponsiveContainer>
           </div>
-        )}
-
-        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-3 text-sm font-extrabold text-slate-700">Budget Overview</h3>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={budgetData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="name" tick={{ fontSize: 12, fontWeight: 600 }} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip formatter={(v) => `$${Number(v).toLocaleString()}`} />
-              <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                <Cell fill="#166432" />
-                <Cell fill="#ef4444" />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-3 text-sm font-extrabold text-slate-700">Training Status</h3>
-          <ResponsiveContainer width="100%" height={240}>
-            <PieChart>
-              <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} innerRadius={50} label={({ name, value }) => `${name}: ${value}`}>
-                {statusData.map((_, i) => <Cell key={i} fill={[COLORS[0], COLORS[2], COLORS[1]][i]} />)}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
         </div>
       </div>
     </div>

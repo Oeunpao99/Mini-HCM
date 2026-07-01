@@ -154,10 +154,28 @@ class ScheduleChangeIn(BaseModel):
 class PerformanceReviewIn(BaseModel):
     user_id: int
     review_period: str
-    score: Decimal = Field(default=0, ge=0, le=100)
-    rating: str = "meets_expectations"
+    start_date: date | None = None
+    end_date: date | None = None
+    reviewer_id: int | None = None
+    score: Decimal | None = Field(default=None, ge=0, le=100)
+    rating: str | None = None
     comments: str | None = None
-    status: str = "draft"
+    status: str = "Draft"
+    kpi_score: Decimal | None = Field(default=None, ge=0, le=100)
+    kpi_weight: Decimal | None = Field(default=None, ge=0, le=100)
+    competency_score: Decimal | None = Field(default=None, ge=0, le=100)
+    behavior_score: Decimal | None = Field(default=None, ge=0, le=100)
+    attendance_score: Decimal | None = Field(default=None, ge=0, le=100)
+    self_assessment: str | None = None
+    manager_comments: str | None = None
+    strengths: str | None = None
+    improvement_areas: str | None = None
+    development_action_plan: str | None = None
+    promotion_recommendation: str | None = None
+    salary_increment_recommendation: str | None = None
+    pip_required: str | None = None
+    final_decision: str | None = None
+    remarks: str | None = None
 
 
 class KpiRecordIn(BaseModel):
@@ -341,6 +359,228 @@ class SimpleRecordOut(BaseModel):
     name: str | None = None
     status: str | None = None
     created_at: datetime | None = None
+
+    class Config:
+        from_attributes = True
+
+
+# ── KPI Plan (KPI Setting) ──────────────────────────────────────
+
+class KpiPlanIn(BaseModel):
+    kpi_period: str
+    start_date: date
+    end_date: date
+    user_id: int
+    kpi_category: str
+    kpi_code: str | None = None
+    kpi_title: str
+    kpi_description: str | None = None
+    measurement_method: str
+    target_value: Decimal = Field(default=0, ge=0)
+    weight: Decimal = Field(default=0, ge=0, le=100)
+    minimum_achievement: Decimal | None = Field(default=None, ge=0, le=100)
+    data_source: str | None = None
+    responsible_person: int | None = None
+    line_manager_approval: str = "Pending"
+    hr_review: str | None = "Pending"
+    final_status: str = "Draft"
+    remarks: str | None = None
+
+
+class KpiPlanOut(BaseModel):
+    id: int
+    kpi_plan_id: str
+    kpi_period: str
+    start_date: date
+    end_date: date
+    user_id: int
+    employee_name: str | None = None
+    department: str | None = None
+    position: str | None = None
+    kpi_category: str
+    kpi_code: str | None = None
+    kpi_title: str
+    kpi_description: str | None = None
+    measurement_method: str
+    target_value: float
+    weight: float
+    minimum_achievement: float | None = None
+    data_source: str | None = None
+    responsible_person: int | None = None
+    responsible_name: str | None = None
+    line_manager_approval: str
+    hr_review: str | None = None
+    final_status: str
+    remarks: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class KpiPlanStatusIn(BaseModel):
+    final_status: str
+
+
+# ── KPI Monitoring ──────────────────────────────────────────────
+
+class KpiMonitoringIn(BaseModel):
+    kpi_plan_id: int
+    monitoring_date: date
+    current_achievement: Decimal = Field(default=0, ge=0)
+    supporting_evidence: str | None = None
+    employee_comment: str | None = None
+    status: str = "Not Started"
+    monitoring_status: str = "Draft"
+    remarks: str | None = None
+
+
+class KpiMonitoringReviewIn(BaseModel):
+    manager_comment: str | None = None
+    action_required: str | None = None
+    monitoring_status: str = "Reviewed"
+
+
+class KpiMonitoringOut(BaseModel):
+    id: int
+    kpi_plan_id: int
+    kpi_title: str | None = None
+    kpi_target: float | None = None
+    kpi_weight: float | None = None
+    kpi_period: str | None = None
+    employee_name: str | None = None
+    department: str | None = None
+    monitoring_date: date
+    current_achievement: float
+    achievement_pct: float | None = None
+    kpi_score: float | None = None
+    status: str
+    supporting_evidence: str | None = None
+    employee_comment: str | None = None
+    manager_comment: str | None = None
+    action_required: str | None = None
+    monitoring_status: str
+    remarks: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    class Config:
+        from_attributes = True
+
+
+# ── Career Development ──────────────────────────────────────────
+
+class CareerDevelopmentIn(BaseModel):
+    user_id: int
+    potential_rating: str | None = None
+    readiness_level: str | None = None
+    career_goal: str | None = None
+    target_position: str | None = None
+    development_area: str | None = None
+    training_required: int | None = None
+    coaching_required: str | None = None
+    mentoring_required: str | None = None
+    successor_candidate: str | None = None
+    talent_pool: str | None = None
+    review_date: date | None = None
+    next_review_date: date | None = None
+    dev_status: str = "Active"
+    remarks: str | None = None
+
+
+class CareerDevelopmentOut(BaseModel):
+    id: int
+    user_id: int
+    employee_name: str | None = None
+    department: str | None = None
+    current_position: str | None = None
+    current_grade: str | None = None
+    performance_rating: str | None = None
+    potential_rating: str | None = None
+    readiness_level: str | None = None
+    career_goal: str | None = None
+    target_position: str | None = None
+    career_path: str | None = None
+    development_area: str | None = None
+    training_required: int | None = None
+    training_name: str | None = None
+    coaching_required: str | None = None
+    mentoring_required: str | None = None
+    successor_candidate: str | None = None
+    talent_pool: str | None = None
+    review_date: date | None = None
+    next_review_date: date | None = None
+    dev_status: str
+    remarks: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    class Config:
+        from_attributes = True
+
+
+# ── PIP (Performance Improvement Plan) ──────────────────────────
+
+class PerformanceImprovementPlanIn(BaseModel):
+    user_id: int
+    pip_start_date: date
+    pip_end_date: date
+    initiated_by: int
+    performance_issue: str
+    root_cause_analysis: str | None = None
+    improvement_objective: str
+    success_criteria: str | None = None
+    action_plan: str | None = None
+    training_required: int | None = None
+    coaching_required: str | None = None
+    mentor_assigned: int | None = None
+    review_frequency: str = "Weekly"
+    approval_status: str = "Draft"
+    remarks: str | None = None
+
+
+class PipProgressIn(BaseModel):
+    progress_status: str
+    progress_comment: str | None = None
+
+
+class PipFinalEvalIn(BaseModel):
+    final_result: str
+    recommendation: str | None = None
+    approval_status: str = "Closed"
+
+
+class PerformanceImprovementPlanOut(BaseModel):
+    id: int
+    pip_no: str
+    user_id: int
+    employee_name: str | None = None
+    department: str | None = None
+    position: str | None = None
+    pip_start_date: date
+    pip_end_date: date
+    pip_duration: int | None = None
+    initiated_by: int
+    initiator_name: str | None = None
+    performance_issue: str
+    root_cause_analysis: str | None = None
+    improvement_objective: str
+    success_criteria: str | None = None
+    action_plan: str | None = None
+    training_required: int | None = None
+    coaching_required: str | None = None
+    mentor_assigned: int | None = None
+    mentor_name: str | None = None
+    review_frequency: str
+    progress_status: str
+    progress_comment: str | None = None
+    final_result: str | None = None
+    recommendation: str | None = None
+    approval_status: str
+    remarks: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     class Config:
         from_attributes = True
