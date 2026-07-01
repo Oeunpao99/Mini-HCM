@@ -143,6 +143,35 @@ def ensure_runtime_schema(engine) -> None:
             },
         )
 
+    if "performance_reviews" in tables:
+        _add_missing_columns(
+            engine,
+            "performance_reviews",
+            {
+                "reviewer_id": "INTEGER",
+                "start_date": "DATE",
+                "end_date": "DATE",
+                "kpi_score": "DECIMAL(5, 2)",
+                "kpi_weight": "DECIMAL(5, 2)",
+                "competency_score": "DECIMAL(5, 2)",
+                "behavior_score": "DECIMAL(5, 2)",
+                "attendance_score": "DECIMAL(5, 2)",
+                "total_score": "DECIMAL(5, 2)",
+                "performance_rating": "VARCHAR(40)",
+                "self_assessment": "TEXT",
+                "manager_comments": "TEXT",
+                "strengths": "TEXT",
+                "improvement_areas": "TEXT",
+                "development_action_plan": "TEXT",
+                "promotion_recommendation": "VARCHAR(10)",
+                "salary_increment_recommendation": "VARCHAR(10)",
+                "pip_required": "VARCHAR(10)",
+                "review_status": "VARCHAR(30) DEFAULT 'Draft'",
+                "final_decision": "VARCHAR(30)",
+                "remarks": "TEXT",
+            },
+        )
+
 
 def _add_missing_columns(engine, table_name: str, columns: dict[str, str]) -> None:
     inspector = inspect(engine)
