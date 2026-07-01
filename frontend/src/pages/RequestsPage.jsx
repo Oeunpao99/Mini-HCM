@@ -335,15 +335,15 @@ const isDateInRequest = (request, targetDate) => {
 };
 
 const LeaveStatCard = ({ label, value, helper, icon: Icon, tone }) => (
-  <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-    <div className="flex items-center gap-2.5">
-      <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${tone}`}>
-        <Icon className="h-5 w-5" aria-hidden />
+  <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="flex items-center gap-4">
+      <span className={`grid h-14 w-14 shrink-0 place-items-center rounded-lg ${tone}`}>
+        <Icon className="h-7 w-7" aria-hidden />
       </span>
       <div className="min-w-0">
-        <p className="text-[11px] font-bold text-[#151b4f] leading-tight">{label}</p>
-        <p className="mt-0.5 text-xl font-extrabold leading-none text-[#151b4f]">{value}</p>
-        {helper && <p className="mt-1 text-[11px] font-semibold text-slate-500">{helper}</p>}
+        <p className="text-sm font-extrabold text-[#111b4f] leading-tight">{label}</p>
+        <p className="mt-1 text-3xl font-extrabold leading-none text-[#111b4f]">{value}</p>
+        {helper && <p className="mt-1 text-sm font-extrabold text-slate-500">{helper}</p>}
       </div>
     </div>
   </div>
@@ -1801,16 +1801,32 @@ const RequestsPage = () => {
       <>
       <section className="min-h-[calc(100vh-4rem)] bg-[#f6f8fd] px-4 py-6 md:px-6">
         <div className="mx-auto max-w-[1600px] space-y-4">
-          <div className="flex flex-wrap items-center justify-end gap-3">
-              <button type="button" onClick={openForm} className="inline-flex h-11 items-center gap-2 rounded-md bg-[#5b21e8] px-4 text-sm font-extrabold text-white shadow-lg shadow-violet-700/20">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <h1 className="text-3xl font-extrabold text-[#111b4f]">{pageTitle}</h1>
+              <p className="mt-1 text-sm font-semibold text-slate-500">
+                Monitor employee leave requests, approvals, balances, and monthly utilization
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <button type="button" onClick={openForm} className="inline-flex h-11 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-extrabold text-white shadow-sm">
                 <FiPlus className="h-4 w-4" aria-hidden />
                 New Request
               </button>
-              <label className="flex h-11 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 shadow-sm">
-                <FiCalendar className="h-4 w-4 text-slate-500" aria-hidden />
+              <label className="flex h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-extrabold text-slate-700 shadow-sm">
+                <span className="text-xs text-slate-400">Month</span>
                 <input type="month" value={leaveMonth} onChange={(event) => setLeaveMonth(event.target.value)} className="bg-transparent outline-none" />
               </label>
+              <button type="button" onClick={load} className="grid h-11 w-11 place-items-center rounded-lg border border-slate-200 bg-white text-slate-700 shadow-sm" title="Refresh">
+                <FiRefreshCw className="h-5 w-5" aria-hidden />
+              </button>
+              <button type="button" onClick={exportCsv} className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#166432] px-4 text-sm font-extrabold text-white shadow-sm">
+                <FiDownload className="h-4 w-4" aria-hidden />
+                Export
+              </button>
             </div>
+          </div>
 
           {actionFeedback && (
             <div className={`fixed right-6 top-20 z-50 flex max-w-sm items-center gap-3 rounded-lg border bg-white px-4 py-3 text-sm font-extrabold shadow-2xl animate-leave-toast ${actionFeedback.type === "success" ? "border-emerald-100 text-emerald-700" : "border-red-100 text-red-700"}`}>
@@ -1881,7 +1897,7 @@ const RequestsPage = () => {
           {!showForm && (
             <>
               {requestType === "ot" && (
-                <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
+                <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
                   <LeaveStatCard label="Total OT Hours" value={`${managementStats.totalOtHours}h`} helper="All overtime hours" icon={FiClock} tone="bg-violet-600 text-white" />
                   <LeaveStatCard label="Pending OT Requests" value={managementStats.pendingOtCount} helper="Awaiting approval" icon={FiClock} tone="bg-amber-500 text-white" />
                   <LeaveStatCard label="Approved OT Requests" value={managementStats.approvedOtCount} helper={`${managementStats.approvedOtHours}h approved`} icon={FiBarChart2} tone="bg-emerald-600 text-white" />
@@ -1892,7 +1908,7 @@ const RequestsPage = () => {
               )}
 
               {requestType === "leave" && (
-                <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
+                <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
                   <LeaveStatCard label="Employees on Leave Today" value={managementStats.onLeaveToday} helper="Current employees on leave" icon={FiUsers} tone="bg-violet-600 text-white" />
                   <LeaveStatCard label="Leave Requests Pending Approval" value={managementStats.pending} helper="Awaiting approval" icon={FiClock} tone="bg-amber-500 text-white" />
                   <LeaveStatCard label="Approved Leave Requests" value={managementStats.approved} helper="Approved leave applications" icon={FiCheckCircle} tone="bg-emerald-600 text-white" />
@@ -1905,23 +1921,25 @@ const RequestsPage = () => {
                 </div>
               )}
 
-              <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+              <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
                   <FiFilter className="h-4 w-4" />
-                  <span>Filter:</span>
+                  <span>Filter Requests</span>
                 </div>
-                <select value={deptFilter} onChange={(event) => setDeptFilter(event.target.value)} className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none">
-                  <option value="all">All Departments</option>
-                  {departmentOptions.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
-                </select>
-                <select value={unitFilter} onChange={(event) => setUnitFilter(event.target.value)} className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none">
-                  <option value="all">All Units</option>
-                  {unitOptions.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
-                </select>
-                <label className="flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600">
-                  <FiSearch className="h-4 w-4 text-slate-400" aria-hidden />
-                  <input value={leaveSearch} onChange={(event) => setLeaveSearch(event.target.value)} className="w-40 bg-transparent outline-none placeholder:text-slate-400" placeholder="Search staff name..." />
-                </label>
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="flex h-10 w-full items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-600 md:w-72">
+                    <FiSearch className="h-4 w-4 text-slate-400" aria-hidden />
+                    <input value={leaveSearch} onChange={(event) => setLeaveSearch(event.target.value)} className="w-full bg-transparent outline-none placeholder:text-slate-400" placeholder="Search employee..." />
+                  </label>
+                  <select value={deptFilter} onChange={(event) => setDeptFilter(event.target.value)} className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none">
+                    <option value="all">All Departments</option>
+                    {departmentOptions.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
+                  </select>
+                  <select value={unitFilter} onChange={(event) => setUnitFilter(event.target.value)} className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none">
+                    <option value="all">All Units</option>
+                    {unitOptions.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+                  </select>
+                </div>
               </div>
 
               {requestType === "ot" ? (
@@ -1933,8 +1951,8 @@ const RequestsPage = () => {
                   ))}
                 </div>
               ) : (
-                <div className="overflow-x-auto border border-slate-200 bg-white shadow-sm">
-                  <div className="flex items-center gap-2 px-3 py-2 min-w-max">
+                <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+                  <div className="flex items-center gap-2 px-4 py-3 min-w-max">
                     {suggestedLeaveTabs.map((group, gi) => (
                       <div key={group.group} className="flex items-center gap-1">
                         {gi > 0 && <div className="mx-1 h-5 w-px bg-slate-200" />}
@@ -1943,7 +1961,7 @@ const RequestsPage = () => {
                             key={tab}
                             type="button"
                             onClick={tab === "New Leave Request" ? openLeaveRequestForm : () => setLeaveTab(tab)}
-                            className={`h-7 shrink-0 rounded-md px-2.5 text-[11px] font-extrabold ${
+                            className={`h-9 shrink-0 rounded-lg px-3 text-xs font-extrabold ${
                               leaveTab === tab
                                 ? "bg-[#166432] text-white shadow-sm"
                                 : "text-slate-600 hover:bg-slate-100 hover:text-[#166432]"
@@ -2719,29 +2737,32 @@ const LeaveReportPanel = ({ rows, tab, stats, onExport }) => {
 
 const LeaveRequestsTable = ({ rows, search, setSearch, onOpen, onUpdate, onMarkPaid, title, recentlyUpdatedId, actionLoadingId, actorRole, currentUserId, approvalFlow }) => (
   <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-    <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
-      <h2 className="text-sm font-extrabold text-[#11164a]">{title}</h2>
-      <label className="flex h-8 items-center gap-2 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-600">
-        <FiSearch className="h-3 w-3 text-slate-400" aria-hidden />
-        <input value={search} onChange={(event) => setSearch(event.target.value)} className="w-32 bg-transparent outline-none placeholder:text-slate-400" placeholder="Search..." />
+    <div className="flex flex-col gap-3 border-b border-slate-100 p-4 xl:flex-row xl:items-center xl:justify-between">
+      <div>
+        <h2 className="text-lg font-extrabold text-[#111b4f]">{title}</h2>
+        <p className="text-xs font-bold text-slate-400">{rows.length} requests in current view</p>
+      </div>
+      <label className="flex h-10 w-full items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 md:w-72">
+        <FiSearch className="h-4 w-4 text-slate-400" aria-hidden />
+        <input value={search} onChange={(event) => setSearch(event.target.value)} className="w-full bg-transparent outline-none placeholder:text-slate-400" placeholder="Search employee..." />
       </label>
     </div>
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[1000px] text-left text-xs">
-        <thead className="bg-slate-50 text-[10px] font-extrabold uppercase text-[#11164a]">
+      <table className="w-full min-w-[1280px] text-left text-sm">
+        <thead className="bg-slate-50 text-xs font-extrabold uppercase text-[#111b4f]">
           <tr>
-            <th className="px-3 py-2 w-8">#</th>
-            <th className="px-3 py-2">EID</th>
-            <th className="px-3 py-2">Employee</th>
-            <th className="px-3 py-2">Type</th>
-            <th className="px-3 py-2">Details</th>
-            <th className="px-3 py-2">Date</th>
-            <th className="px-3 py-2">Unit</th>
-            <th className="px-3 py-2">Reason</th>
-            <th className="px-3 py-2">Status</th>
-            <th className="px-3 py-2">Pending On</th>
-            <th className="px-3 py-2">Applied</th>
-            <th className="px-3 py-2 text-right">View</th>
+            <th className="px-3 py-3 w-8">#</th>
+            <th className="px-3 py-3">Employee ID</th>
+            <th className="px-3 py-3">Employee</th>
+            <th className="px-3 py-3">Type</th>
+            <th className="px-3 py-3">Details</th>
+            <th className="px-3 py-3">Date</th>
+            <th className="px-3 py-3">Unit</th>
+            <th className="px-3 py-3">Reason</th>
+            <th className="px-3 py-3">Status</th>
+            <th className="px-3 py-3">Pending On</th>
+            <th className="px-3 py-3">Applied</th>
+            <th className="px-3 py-3 text-right">Action</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -2751,39 +2772,39 @@ const LeaveRequestsTable = ({ rows, search, setSearch, onOpen, onUpdate, onMarkP
             const isWaitingOnSomeoneElse = request.status === "pending" && pendingStage && !canApprove;
             return (
             <tr key={request.id} className={`${recentlyUpdatedId === request.id ? "animate-leave-row bg-emerald-50/80" : "hover:bg-slate-50/70"}`}>
-              <td className="px-3 py-2 text-center font-bold text-[#11164a]">{index + 1}</td>
-              <td className="px-3 py-2 font-semibold text-[#11164a]">{user?.emp_code || "-"}</td>
-              <td className="px-3 py-2">
+              <td className="px-3 py-3 text-center font-bold text-[#111b4f]">{index + 1}</td>
+              <td className="px-3 py-3 font-mono font-semibold text-[#111b4f]">{user?.emp_code || "-"}</td>
+              <td className="px-3 py-3">
                 <div className="flex items-center gap-2">
-                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-slate-200 text-[10px] font-extrabold text-[#11164a]">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-slate-200 text-xs font-extrabold text-[#111b4f]">
                     {String(user?.name || "U").split(" ").map((part) => part[0]).join("").slice(0, 2)}
                   </span>
                   <div className="min-w-0">
-                    <p className="truncate font-extrabold text-[#11164a]">{user?.name || `#${request.user_id}`}</p>
-                    <p className="text-[10px] font-semibold text-slate-500">{user?.department || "-"}</p>
+                    <p className="truncate font-extrabold text-[#111b4f]">{user?.name || `#${request.user_id}`}</p>
+                    <p className="text-xs font-semibold text-slate-500">{user?.department || "-"}</p>
                   </div>
                 </div>
               </td>
-              <td className="px-3 py-2">
-                <span className={`rounded px-2 py-1 text-[10px] font-extrabold ${requestTypeTone(request.type)}`}>{requestTypeLabel(request.type)}</span>
+              <td className="px-3 py-3">
+                <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${requestTypeTone(request.type)}`}>{requestTypeLabel(request.type)}</span>
               </td>
-              <td className="px-3 py-2 font-semibold text-[#11164a]">{detail}</td>
-              <td className="px-3 py-2 font-semibold text-[#11164a]">{range}</td>
-              <td className="px-3 py-2 font-semibold text-[#11164a]">{unit}</td>
-              <td className="px-3 py-2 max-w-[120px] truncate font-semibold text-[#11164a]">{reason}</td>
-              <td className="px-3 py-2">
-                <span className={`rounded px-2 py-1 text-[10px] font-extrabold ${leaveStatusTone(request.status)}`}>{statusDisplay(request.status)}</span>
+              <td className="px-3 py-3 font-semibold text-[#111b4f]">{detail}</td>
+              <td className="px-3 py-3 font-semibold text-[#111b4f]">{range}</td>
+              <td className="px-3 py-3 font-semibold text-[#111b4f]">{unit}</td>
+              <td className="px-3 py-3 max-w-[180px] truncate font-semibold text-[#111b4f]">{reason}</td>
+              <td className="px-3 py-3">
+                <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${leaveStatusTone(request.status)}`}>{statusDisplay(request.status)}</span>
               </td>
-              <td className="px-3 py-2">
-                <span className={`rounded px-2 py-1 text-[10px] font-extrabold ${pendingStage ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-400"}`}>
+              <td className="px-3 py-3">
+                <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${pendingStage ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-400"}`}>
                   {pendingStage?.label || "-"}
                 </span>
               </td>
-              <td className="px-3 py-2 font-semibold text-slate-600">{formatDate(request.date)}</td>
-              <td className="px-3 py-2">
+              <td className="px-3 py-3 font-semibold text-slate-600">{formatDate(request.date)}</td>
+              <td className="px-3 py-3">
                 <div className="flex justify-end gap-1">
-                  <button type="button" onClick={() => onOpen(request)} className="grid h-7 w-7 place-items-center rounded-md text-[#11164a] hover:bg-slate-100" title="View">
-                    <FiEye className="h-3.5 w-3.5" aria-hidden />
+                  <button type="button" onClick={() => onOpen(request)} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-[#111b4f] hover:bg-slate-100" title="View">
+                    <FiEye className="h-4 w-4" aria-hidden />
                   </button>
                   {request.status === "pending" && (
                     <>
@@ -2792,7 +2813,7 @@ const LeaveRequestsTable = ({ rows, search, setSearch, onOpen, onUpdate, onMarkP
                         onClick={() => onUpdate(request.id, "approved")}
                         disabled={!canApprove || actionLoadingId === request.id}
                         title={isWaitingOnSomeoneElse ? `Waiting for ${pendingStage.label}` : "Approve request"}
-                        className="rounded-md bg-emerald-100 px-3 py-1.5 text-xs font-extrabold text-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                        className="rounded-lg bg-emerald-100 px-3 py-2 text-xs font-extrabold text-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                       >
                         {actionLoadingId === request.id ? "Saving..." : "Approve"}
                       </button>
@@ -2801,7 +2822,7 @@ const LeaveRequestsTable = ({ rows, search, setSearch, onOpen, onUpdate, onMarkP
                         onClick={() => onUpdate(request.id, "rejected")}
                         disabled={!canApprove || actionLoadingId === request.id}
                         title={isWaitingOnSomeoneElse ? `Waiting for ${pendingStage.label}` : "Reject request"}
-                        className="rounded-md bg-red-100 px-3 py-1.5 text-xs font-extrabold text-red-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                        className="rounded-lg bg-red-100 px-3 py-2 text-xs font-extrabold text-red-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                       >
                         {actionLoadingId === request.id ? "Saving..." : "Reject"}
                       </button>
@@ -2815,7 +2836,7 @@ const LeaveRequestsTable = ({ rows, search, setSearch, onOpen, onUpdate, onMarkP
                       type="button"
                       onClick={() => onMarkPaid?.(request.id)}
                       disabled={actionLoadingId === request.id}
-                      className="rounded bg-blue-100 px-2 py-1 text-[10px] font-extrabold text-blue-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                      className="rounded-lg bg-blue-100 px-3 py-2 text-xs font-extrabold text-blue-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                     >
                       {actionLoadingId === request.id ? "Saving..." : "Mark as Paid"}
                     </button>
@@ -2826,16 +2847,16 @@ const LeaveRequestsTable = ({ rows, search, setSearch, onOpen, onUpdate, onMarkP
           );
           })}
           {rows.length === 0 && (
-            <tr><td colSpan={12} className="px-3 py-6 text-center text-xs font-bold text-slate-400">No requests found.</td></tr>
+            <tr><td colSpan={12} className="px-5 py-10 text-center text-sm font-bold text-slate-400">No requests found.</td></tr>
           )}
         </tbody>
       </table>
     </div>
-    <div className="flex items-center justify-between border-t border-slate-100 px-3 py-2">
-      <p className="text-xs font-semibold text-[#11164a]">1-{Math.min(8, rows.length)} of {rows.length}</p>
+    <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3">
+      <p className="text-sm font-semibold text-[#111b4f]">1-{Math.min(8, rows.length)} of {rows.length}</p>
       <div className="flex items-center gap-1">
         {[1, 2, 3].map((page) => (
-          <button key={page} type="button" className={`h-6 min-w-6 rounded border px-1.5 text-[11px] font-bold ${page === 1 ? "border-[#5b21e8] bg-[#5b21e8] text-white" : "border-slate-200 text-slate-700"}`}>{page}</button>
+          <button key={page} type="button" className={`h-8 min-w-8 rounded-lg border px-2 text-xs font-bold ${page === 1 ? "border-[#166432] bg-[#166432] text-white" : "border-slate-200 text-slate-700"}`}>{page}</button>
         ))}
       </div>
     </div>

@@ -41,4 +41,4 @@ class User(Base):
     requests = relationship("Request", back_populates="user", foreign_keys="Request.user_id")
     manager = relationship("User", remote_side=[id], back_populates="direct_reports")
     direct_reports = relationship("User", back_populates="manager")
-    profile = relationship("EmployeeProfile", back_populates="user", uselist=False)
+    profile = relationship("EmployeeProfile", back_populates="user", uselist=False, foreign_keys="EmployeeProfile.user_id")

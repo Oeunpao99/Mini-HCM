@@ -6,6 +6,7 @@ import AdminPage from "./pages/AdminPage";
 import AttendancePage from "./pages/AttendancePage";
 import MyAttendancePage from "./pages/MyAttendancePage";
 import DashboardPage from "./pages/DashboardPage";
+import EmployeeInfoPage from "./pages/EmployeeInfoPage";
 import HrisPage from "./pages/HrisPage";
 import LoginPage from "./pages/LoginPage";
 import PayslipPage from "./pages/PayslipPage";
@@ -15,6 +16,7 @@ import RequestsPage from "./pages/RequestsPage";
 import SelfServicePage from "./pages/SelfServicePage";
 import ShiftPage from "./pages/ShiftPage";
 import SwapPage from "./pages/SwapPage";
+import PayrollCompPage from "./pages/PayrollCompPage";
 import PerformancePage from "./pages/PerformancePage";
 import TrainingPage from "./pages/TrainingPage";
 
@@ -105,6 +107,19 @@ const App = () => {
       />
 
       <Route
+        path="/employee-info"
+        element={
+          <ProtectedRoute
+            roles={["line_manager", "department_head", "management_hr", "payroll_officer"]}
+          >
+            <Layout>
+              <EmployeeInfoPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/training"
         element={
           <ProtectedRoute>
@@ -123,6 +138,19 @@ const App = () => {
           >
             <Layout>
               <PerformancePage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/payroll-comp"
+        element={
+          <ProtectedRoute
+            roles={["line_manager", "department_head", "management_hr", "payroll_officer"]}
+          >
+            <Layout>
+              <PayrollCompPage />
             </Layout>
           </ProtectedRoute>
         }

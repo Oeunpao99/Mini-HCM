@@ -220,11 +220,11 @@ def _seed_hris_data(db: Session, users: list[User], reviewer_id: int, payroll_of
                     address="Phnom Penh",
                     position=_position_for_role(role),
                     sub_department=sub_dept,
-                    contract_type="full_time",
+                    contract_type="Full-Time",
                     contract_start_date=date(2026, 1, 1),
                     basic_salary=salary,
                     bank_account=f"PSB{user.id:06d}",
-                    status="active",
+                    employment_status="active",
                 )
             )
         else:

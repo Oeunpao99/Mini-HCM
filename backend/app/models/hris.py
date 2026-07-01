@@ -1,4 +1,4 @@
-from sqlalchemy import DECIMAL, Boolean, Column, Date, DateTime, Enum, ForeignKey, Integer, String, Text, Time, func
+from sqlalchemy import DECIMAL, Boolean, Column, Date, DateTime, Enum, ForeignKey, Integer, JSON, String, Text, Time, func
 from sqlalchemy.orm import relationship
 
 from app.db.session import Base
@@ -48,22 +48,59 @@ class EmployeeProfile(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False, index=True)
+    name = Column(String(120), nullable=True)
+    name_khmer = Column(String(120), nullable=True)
+    gender = Column(String(10), nullable=True)
+    date_of_birth = Column(Date, nullable=True)
+    place_of_birth = Column(String(100), nullable=True)
+    marital_status = Column(String(30), nullable=True)
+    nationality = Column(String(60), nullable=True)
     phone = Column(String(50), nullable=True)
+    personal_email = Column(String(120), nullable=True)
     address = Column(String(255), nullable=True)
-    position = Column(String(100), nullable=True)
-    sub_department = Column(String(100), nullable=True)
-    job_grade = Column(String(50), nullable=True)
-    contract_type = Column(String(50), nullable=False, default="full_time")
-    contract_start_date = Column(Date, nullable=True)
-    contract_end_date = Column(Date, nullable=True)
-    basic_salary = Column(DECIMAL(12, 2), nullable=False, default=0)
+    permanent_address = Column(String(255), nullable=True)
+    national_id = Column(String(50), nullable=True)
+    id_issue_date = Column(Date, nullable=True)
+    id_expiry_date = Column(Date, nullable=True)
+    passport_no = Column(String(50), nullable=True)
+    passport_expiry_date = Column(Date, nullable=True)
+    emergency_contact_name = Column(String(100), nullable=True)
+    emergency_contact_relation = Column(String(50), nullable=True)
+    emergency_contact_phone = Column(String(50), nullable=True)
+    spouse_name = Column(String(100), nullable=True)
+    children_count = Column(Integer, nullable=True, default=0)
+    bank_name = Column(String(100), nullable=True)
+    bank_account_name = Column(String(100), nullable=True)
     bank_account = Column(String(100), nullable=True)
     profile_photo = Column(Text, nullable=True)
-    status = Column(String(30), nullable=False, default="active")
+    position = Column(String(100), nullable=True)
+    sub_department = Column(String(100), nullable=True)
+    department = Column(String(100), nullable=True)
+    job_grade = Column(String(50), nullable=True)
+    job_level = Column(String(50), nullable=True)
+    contract_type = Column(String(50), nullable=False, default="Full-Time")
+    contract_start_date = Column(Date, nullable=True)
+    contract_end_date = Column(Date, nullable=True)
+    confirmation_date = Column(Date, nullable=True)
+    probation_end_date = Column(Date, nullable=True)
+    join_date = Column(Date, nullable=True)
+    resignation_date = Column(Date, nullable=True)
+    employment_status = Column(String(30), nullable=False, default="Active")
+    basic_salary = Column(DECIMAL(12, 2), nullable=False, default=0)
+    work_email = Column(String(120), nullable=True)
+    extension_no = Column(String(30), nullable=True)
+    workstation = Column(String(60), nullable=True)
+    payroll_group = Column(String(50), nullable=True)
+    cost_center = Column(String(50), nullable=True)
+    employee_category = Column(String(30), nullable=True)
+    supervisor_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    department_head_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
-    user = relationship("User", back_populates="profile")
+    user = relationship("User", back_populates="profile", foreign_keys=[user_id])
+    supervisor = relationship("User", foreign_keys=[supervisor_id])
+    department_head = relationship("User", foreign_keys=[department_head_id])
 
 
 class EmployeeHistory(Base):
@@ -452,3 +489,250 @@ class PerformanceImprovementPlan(Base):
     initiator = relationship("User", foreign_keys=[initiated_by])
     mentor = relationship("User", foreign_keys=[mentor_assigned])
     training = relationship("TrainingPlan", foreign_keys=[training_required])
+
+
+# ── Payroll, Compensation & Staff Movement ──
+
+PAYROLL_CYCLES = ("Monthly", "Bi-Weekly", "Weekly")
+PAYROLL_BATCH_STATUSES = ("Draft", "Calculated", "Approved", "Paid", "Reversed")
+PAYROLL_EMPLOYEE_STATUSES = ("Draft", "Calculated", "Approved", "Paid")
+PAYMENT_METHODS = ("Bank Transfer", "Cash")
+
+SALARY_GRADES = ("Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5")
+SALARY_BANDS = ("Low", "Medium", "High")
+ALLOWANCE_TYPES = ("Transport", "Phone", "Meal", "Housing", "Position", "Other")
+ADJUSTMENT_TYPES = ("Annual Increment", "Promotion Adjustment", "Market Adjustment", "Special Adjustment", "Probation Confirmation")
+COMP_STATUSES = ("Active", "Pending Approval", "Approved", "Rejected", "Expired")
+
+BENEFIT_TYPES = ("Health Insurance", "Accident Insurance", "Life Insurance", "Transportation Allowance", "Phone Allowance", "Meal Allowance", "Uniform Benefit", "Profit Sharing Bonus", "Performance Bonus", "Seniority Payment", "Wedding Gift", "Funeral Support", "Maternity Benefit", "Other Benefits")
+BENEFIT_STATUSES = ("Active", "Pending Approval", "Approved", "Rejected", "Expired", "Suspended")
+
+SENIORITY_PERIODS = ("Mid-Year Seniority", "Year-End Seniority", "Outstanding Seniority")
+SEVERANCE_TYPES = ("Contract Completion", "Employment Termination", "Mutual Agreement", "Other Compensation")
+SS_STATUSES = ("Draft", "Pending Approval", "Approved", "Paid", "Cancelled")
+
+MOVEMENT_TYPES = ("Promotion", "Transfer", "Demotion", "Acting Assignment", "Salary Adjustment", "Reporting Line Change", "Employment Status Change")
+MOVEMENT_STATUSES = ("Draft", "Pending Approval", "Approved", "Effective", "Rejected", "Cancelled")
+
+
+class PayrollBatch(Base):
+    __tablename__ = "payroll_batches"
+
+    id = Column(Integer, primary_key=True, index=True)
+    batch_no = Column(String(30), unique=True, nullable=False)
+    month = Column(Integer, nullable=False)
+    year = Column(Integer, nullable=False)
+    cycle = Column(Enum(*PAYROLL_CYCLES, name="payroll_cycle"), nullable=False, default="Monthly")
+    status = Column(Enum(*PAYROLL_BATCH_STATUSES, name="payroll_batch_status"), nullable=False, default="Draft")
+    total_basic = Column(DECIMAL(14, 2), nullable=False, default=0)
+    total_allowances = Column(DECIMAL(14, 2), nullable=False, default=0)
+    total_overtime = Column(DECIMAL(14, 2), nullable=False, default=0)
+    total_deductions = Column(DECIMAL(14, 2), nullable=False, default=0)
+    total_net = Column(DECIMAL(14, 2), nullable=False, default=0)
+    employee_count = Column(Integer, nullable=False, default=0)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    employees = relationship("PayrollEmployee", back_populates="batch")
+
+
+class PayrollEmployee(Base):
+    __tablename__ = "payroll_employees"
+
+    id = Column(Integer, primary_key=True, index=True)
+    batch_id = Column(Integer, ForeignKey("payroll_batches.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    basic_salary = Column(DECIMAL(12, 2), nullable=False, default=0)
+    allowances = Column(JSON, nullable=True)
+    gross_salary = Column(DECIMAL(12, 2), nullable=False, default=0)
+    working_days = Column(Integer, nullable=False, default=0)
+    present_days = Column(Integer, nullable=False, default=0)
+    absent_days = Column(Integer, nullable=False, default=0)
+    leave_days = Column(Integer, nullable=False, default=0)
+    late_deduction = Column(DECIMAL(12, 2), nullable=False, default=0)
+    ot_hours = Column(DECIMAL(6, 2), nullable=False, default=0)
+    ot_amount = Column(DECIMAL(12, 2), nullable=False, default=0)
+    nssf = Column(DECIMAL(12, 2), nullable=False, default=0)
+    tax = Column(DECIMAL(12, 2), nullable=False, default=0)
+    other_deductions = Column(JSON, nullable=True)
+    net_salary = Column(DECIMAL(12, 2), nullable=False, default=0)
+    status = Column(Enum(*PAYROLL_EMPLOYEE_STATUSES, name="payroll_emp_status"), nullable=False, default="Draft")
+    payment_date = Column(Date, nullable=True)
+    payment_method = Column(Enum(*PAYMENT_METHODS, name="payment_method"), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    batch = relationship("PayrollBatch", back_populates="employees")
+    user = relationship("User")
+
+
+class Compensation(Base):
+    __tablename__ = "compensations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    salary_grade = Column(Enum(*SALARY_GRADES, name="salary_grade"), nullable=True)
+    salary_band = Column(Enum(*SALARY_BANDS, name="salary_band"), nullable=True)
+    basic_salary = Column(DECIMAL(12, 2), nullable=False, default=0)
+    allowance_type = Column(Enum(*ALLOWANCE_TYPES, name="allowance_type"), nullable=True)
+    allowance_amount = Column(DECIMAL(12, 2), nullable=False, default=0)
+    benefit_package = Column(String(100), nullable=True)
+    adjustment_type = Column(Enum(*ADJUSTMENT_TYPES, name="adjustment_type"), nullable=True)
+    effective_date = Column(Date, nullable=True)
+    previous_salary = Column(DECIMAL(12, 2), nullable=True)
+    new_salary = Column(DECIMAL(12, 2), nullable=True)
+    adjustment_amount = Column(DECIMAL(12, 2), nullable=True)
+    adjustment_reason = Column(Text, nullable=True)
+    approval_status = Column(Enum(*COMP_STATUSES, name="comp_status"), nullable=False, default="Active")
+    remarks = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
+
+
+class EmployeeBenefit(Base):
+    __tablename__ = "employee_benefits"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    benefit_type = Column(Enum(*BENEFIT_TYPES, name="benefit_type"), nullable=False)
+    benefit_name = Column(String(120), nullable=False)
+    effective_date = Column(Date, nullable=True)
+    expiry_date = Column(Date, nullable=True)
+    benefit_value = Column(DECIMAL(12, 2), nullable=False, default=0)
+    status = Column(Enum(*BENEFIT_STATUSES, name="benefit_status"), nullable=False, default="Active")
+    utilization_date = Column(Date, nullable=True)
+    utilization_amount = Column(DECIMAL(12, 2), nullable=True)
+    approval_status = Column(String(30), nullable=True)
+    remarks = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
+
+
+class SenioritySeverance(Base):
+    __tablename__ = "seniority_severances"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    payment_type = Column(String(30), nullable=False)
+    severance_type = Column(String(50), nullable=True)
+    join_date = Column(Date, nullable=True)
+    years_of_service = Column(Integer, nullable=True)
+    eligible_salary = Column(DECIMAL(12, 2), nullable=False, default=0)
+    payment_amount = Column(DECIMAL(12, 2), nullable=False, default=0)
+    payment_date = Column(Date, nullable=True)
+    status = Column(Enum(*SS_STATUSES, name="ss_status"), nullable=False, default="Draft")
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
+
+
+class StaffMovement(Base):
+    __tablename__ = "staff_movements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    movement_no = Column(String(30), unique=True, nullable=False)
+    movement_type = Column(Enum(*MOVEMENT_TYPES, name="movement_type"), nullable=False)
+    effective_date = Column(Date, nullable=False)
+    reason = Column(Text, nullable=True)
+    current_department = Column(String(100), nullable=True)
+    new_department = Column(String(100), nullable=True)
+    current_position = Column(String(100), nullable=True)
+    new_position = Column(String(100), nullable=True)
+    current_supervisor_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    new_supervisor_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    current_salary = Column(DECIMAL(12, 2), nullable=True)
+    new_salary = Column(DECIMAL(12, 2), nullable=True)
+    salary_difference = Column(DECIMAL(12, 2), nullable=True)
+    requested_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    approval_status = Column(Enum(*MOVEMENT_STATUSES, name="movement_status"), nullable=False, default="Draft")
+    approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approval_date = Column(Date, nullable=True)
+    remarks = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User", foreign_keys=[user_id])
+    requester = relationship("User", foreign_keys=[requested_by])
+    approver = relationship("User", foreign_keys=[approved_by])
+    current_supervisor = relationship("User", foreign_keys=[current_supervisor_id])
+    new_supervisor = relationship("User", foreign_keys=[new_supervisor_id])
+
+
+# ── Employee Information Management ──
+
+JOB_LEVELS = ("Staff", "Senior", "Supervisor", "Manager", "Director", "VP", "C-Level")
+DOC_TYPES = (
+    "National ID Card", "Passport", "Family Book", "Birth Certificate",
+    "CV / Resume", "Employment Contract", "Promotion Letter", "Transfer Letter",
+    "Warning Letter", "Resignation Letter", "Bank Book", "Salary Adjustment Letter",
+    "NDA", "Policy Acknowledgement", "Certificate", "Training Record",
+)
+DOC_STATUSES = ("Active", "Expired", "Archived")
+
+
+class Department(Base):
+    __tablename__ = "departments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(30), unique=True, nullable=False)
+    name = Column(String(120), nullable=False)
+    parent_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
+    department_head_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    effective_date = Column(Date, nullable=True)
+    status = Column(String(20), nullable=False, default="Active")
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    parent = relationship("Department", foreign_keys=[parent_id], remote_side="Department.id")
+    head = relationship("User", foreign_keys=[department_head_id])
+
+
+class Position(Base):
+    __tablename__ = "positions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(30), unique=True, nullable=False)
+    title = Column(String(120), nullable=False)
+    job_level = Column(Enum(*JOB_LEVELS, name="job_level"), nullable=True)
+    grade = Column(String(30), nullable=True)
+    department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
+    reports_to_id = Column(Integer, ForeignKey("positions.id"), nullable=True)
+    headcount_budget = Column(Integer, nullable=True, default=0)
+    current_headcount = Column(Integer, nullable=True, default=0)
+    effective_date = Column(Date, nullable=True)
+    status = Column(String(20), nullable=False, default="Active")
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    department = relationship("Department")
+    reports_to = relationship("Position", foreign_keys=[reports_to_id], remote_side="Position.id")
+
+
+class EmployeeDocument(Base):
+    __tablename__ = "employee_documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    doc_type = Column(Enum(*DOC_TYPES, name="doc_type"), nullable=False)
+    doc_name = Column(String(120), nullable=False)
+    doc_number = Column(String(60), nullable=True)
+    issue_date = Column(Date, nullable=True)
+    expiry_date = Column(Date, nullable=True)
+    file_path = Column(Text, nullable=True)
+    file_version = Column(Integer, nullable=True, default=1)
+    status = Column(Enum(*DOC_STATUSES, name="doc_status"), nullable=False, default="Active")
+    remarks = Column(Text, nullable=True)
+    uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User", foreign_keys=[user_id])
+    uploader = relationship("User", foreign_keys=[uploaded_by])

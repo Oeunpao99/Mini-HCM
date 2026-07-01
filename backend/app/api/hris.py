@@ -132,7 +132,7 @@ def _profile_payload(profile: EmployeeProfile) -> dict:
         "basic_salary": _money(profile.basic_salary),
         "bank_account": profile.bank_account,
         "profile_photo": profile.profile_photo,
-        "status": profile.status,
+        "status": profile.employment_status,
     }
 
 
@@ -420,7 +420,9 @@ def dashboard(
     today = date.today()
     total_employees = db.query(User).filter(User.id.in_(user_ids)).count()
     active_profiles = (
-        db.query(EmployeeProfile).filter(EmployeeProfile.user_id.in_(user_ids), EmployeeProfile.status == "active").count()
+        db.query(EmployeeProfile)
+        .filter(EmployeeProfile.user_id.in_(user_ids), func.lower(EmployeeProfile.employment_status) == "active")
+        .count()
     )
     present_today = (
         db.query(Attendance)
@@ -573,7 +575,10 @@ def upsert_employee_profile(
         db.add(profile)
 
     for field, value in payload.model_dump().items():
-        setattr(profile, field, value)
+        if field == "status":
+            profile.employment_status = value
+        else:
+            setattr(profile, field, value)
 
     db.commit()
     db.refresh(profile)
@@ -630,7 +635,7 @@ def create_employee(
         basic_salary=payload.basic_salary,
         bank_account=payload.bank_account,
         profile_photo=payload.profile_photo,
-        status=payload.status,
+        employment_status=payload.status,
     )
     db.add(profile)
     db.add(
@@ -724,7 +729,7 @@ def create_movement_request(
         proposed_salary=payload.proposed_salary if has_salary else None,
         current_contract_type=profile.contract_type,
         proposed_contract_type=proposed_contract_type,
-        current_status=profile.status,
+        current_status=profile.employment_status,
         proposed_status=proposed_status,
         reason=payload.reason,
         status="pending",
@@ -791,7 +796,7 @@ def review_movement_request(
         if row.proposed_contract_type:
             profile.contract_type = row.proposed_contract_type
         if row.proposed_status:
-            profile.status = row.proposed_status
+            profile.employment_status = row.proposed_status
         db.add(
             EmployeeHistory(
                 user_id=row.user_id,
@@ -894,7 +899,7 @@ def generate_payroll_records(
     profiles = (
         db.query(EmployeeProfile)
         .join(User)
-        .filter(EmployeeProfile.user_id.in_(user_ids), EmployeeProfile.status == "active")
+        .filter(EmployeeProfile.user_id.in_(user_ids), func.lower(EmployeeProfile.employment_status) == "active")
         .order_by(User.name.asc())
         .all()
     )

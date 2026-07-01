@@ -16,6 +16,7 @@ import {
   FiCreditCard,
   FiDollarSign,
   FiFileText,
+  FiFolder,
   FiGrid,
   FiLogOut,
   FiMenu,
@@ -26,6 +27,7 @@ import {
   FiStar,
   FiTarget,
   FiTrendingUp,
+  FiUser,
   FiUserCheck,
   FiUsers,
 } from "react-icons/fi";
@@ -50,6 +52,18 @@ const flatNavItems = [
 ];
 
 const moduleGroups = [
+  {
+    key: "employee_info",
+    label: "Employee Information Management",
+    icon: <FiUsers className="h-5 w-5" aria-hidden />,
+    items: [
+      { to: "/employee-info", label: "Dashboard", icon: <FiGrid className="h-4 w-4" aria-hidden /> },
+      { to: "/employee-info?tab=personal", label: "Personal Information", icon: <FiUser className="h-4 w-4" aria-hidden /> },
+      { to: "/employee-info?tab=profile", label: "Master Employee Profile", icon: <FiUserCheck className="h-4 w-4" aria-hidden /> },
+      { to: "/employee-info?tab=org-structure", label: "Organization Structure", icon: <FiFolder className="h-4 w-4" aria-hidden /> },
+      { to: "/employee-info?tab=documents", label: "Document Management", icon: <FiFileText className="h-4 w-4" aria-hidden /> },
+    ],
+  },
   {
     key: "attendance_leave",
     label: "Attendance & Leave",
@@ -106,7 +120,6 @@ const standaloneNavItems = [
 ];
 
 const otherNavItems = [
-  { to: "/hris?tab=payroll", label: "Payroll", icon: <FiCreditCard className="h-5 w-5" aria-hidden /> },
   { to: "/hris?tab=reports", label: "Reports", icon: <BsFillClipboardDataFill className="h-5 w-5" aria-hidden /> },
   { to: "/hris?tab=settings", label: "HRIS Settings", icon: <FiSettings className="h-5 w-5" aria-hidden /> },
   { to: "/profile", label: "Settings", icon: <FiSettings className="h-5 w-5" aria-hidden /> },

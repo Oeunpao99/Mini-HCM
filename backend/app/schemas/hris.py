@@ -584,3 +584,464 @@ class PerformanceImprovementPlanOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ── Payroll, Compensation & Staff Movement Schemas ──
+
+class PayrollBatchIn(BaseModel):
+    month: int
+    year: int
+    cycle: str = "Monthly"
+    notes: str | None = None
+
+
+class PayrollBatchOut(BaseModel):
+    id: int
+    batch_no: str
+    month: int
+    year: int
+    cycle: str
+    status: str
+    total_basic: Decimal = 0
+    total_allowances: Decimal = 0
+    total_overtime: Decimal = 0
+    total_deductions: Decimal = 0
+    total_net: Decimal = 0
+    employee_count: int = 0
+    notes: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class PayrollEmployeeIn(BaseModel):
+    user_id: int
+    basic_salary: Decimal = 0
+    allowances: dict | None = None
+    working_days: int = 0
+    present_days: int = 0
+    absent_days: int = 0
+    leave_days: int = 0
+    late_deduction: Decimal = 0
+    ot_hours: Decimal = 0
+    ot_amount: Decimal = 0
+    nssf: Decimal = 0
+    tax: Decimal = 0
+    other_deductions: dict | None = None
+    payment_date: date | None = None
+    payment_method: str | None = None
+
+
+class PayrollEmployeeOut(BaseModel):
+    id: int
+    batch_id: int
+    user_id: int
+    basic_salary: Decimal = 0
+    allowances: dict | None = None
+    gross_salary: Decimal = 0
+    working_days: int = 0
+    present_days: int = 0
+    absent_days: int = 0
+    leave_days: int = 0
+    late_deduction: Decimal = 0
+    ot_hours: Decimal = 0
+    ot_amount: Decimal = 0
+    nssf: Decimal = 0
+    tax: Decimal = 0
+    other_deductions: dict | None = None
+    net_salary: Decimal = 0
+    status: str
+    payment_date: date | None = None
+    payment_method: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    employee_name: str | None = None
+    department: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class CompensationIn(BaseModel):
+    user_id: int
+    salary_grade: str | None = None
+    salary_band: str | None = None
+    basic_salary: Decimal = 0
+    allowance_type: str | None = None
+    allowance_amount: Decimal = 0
+    benefit_package: str | None = None
+    adjustment_type: str | None = None
+    effective_date: date | None = None
+    new_salary: Decimal | None = None
+    adjustment_reason: str | None = None
+    remarks: str | None = None
+
+
+class CompensationOut(BaseModel):
+    id: int
+    user_id: int
+    salary_grade: str | None = None
+    salary_band: str | None = None
+    basic_salary: Decimal = 0
+    allowance_type: str | None = None
+    allowance_amount: Decimal = 0
+    benefit_package: str | None = None
+    adjustment_type: str | None = None
+    effective_date: date | None = None
+    previous_salary: Decimal | None = None
+    new_salary: Decimal | None = None
+    adjustment_amount: Decimal | None = None
+    adjustment_reason: str | None = None
+    approval_status: str = "Active"
+    remarks: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    employee_name: str | None = None
+    department: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class EmployeeBenefitIn(BaseModel):
+    user_id: int
+    benefit_type: str
+    benefit_name: str
+    effective_date: date | None = None
+    expiry_date: date | None = None
+    benefit_value: Decimal = 0
+    status: str = "Active"
+    utilization_date: date | None = None
+    utilization_amount: Decimal | None = None
+    remarks: str | None = None
+
+
+class EmployeeBenefitOut(BaseModel):
+    id: int
+    user_id: int
+    benefit_type: str
+    benefit_name: str
+    effective_date: date | None = None
+    expiry_date: date | None = None
+    benefit_value: Decimal = 0
+    status: str = "Active"
+    utilization_date: date | None = None
+    utilization_amount: Decimal | None = None
+    approval_status: str | None = None
+    remarks: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    employee_name: str | None = None
+    department: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class SenioritySeveranceIn(BaseModel):
+    user_id: int
+    payment_type: str
+    severance_type: str | None = None
+    join_date: date | None = None
+    years_of_service: int | None = None
+    eligible_salary: Decimal = 0
+    payment_amount: Decimal = 0
+    payment_date: date | None = None
+    notes: str | None = None
+
+
+class SenioritySeveranceOut(BaseModel):
+    id: int
+    user_id: int
+    payment_type: str
+    severance_type: str | None = None
+    join_date: date | None = None
+    years_of_service: int | None = None
+    eligible_salary: Decimal = 0
+    payment_amount: Decimal = 0
+    payment_date: date | None = None
+    status: str = "Draft"
+    notes: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    employee_name: str | None = None
+    department: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class StaffMovementIn(BaseModel):
+    user_id: int
+    movement_type: str
+    effective_date: date
+    reason: str | None = None
+    new_department: str | None = None
+    new_position: str | None = None
+    new_supervisor_id: int | None = None
+    new_salary: Decimal | None = None
+    remarks: str | None = None
+
+
+class StaffMovementOut(BaseModel):
+    id: int
+    user_id: int
+    movement_no: str
+    movement_type: str
+    effective_date: date
+    reason: str | None = None
+    current_department: str | None = None
+    new_department: str | None = None
+    current_position: str | None = None
+    new_position: str | None = None
+    current_supervisor_id: int | None = None
+    new_supervisor_id: int | None = None
+    current_salary: Decimal | None = None
+    new_salary: Decimal | None = None
+    salary_difference: Decimal | None = None
+    requested_by: int
+    approval_status: str = "Draft"
+    approved_by: int | None = None
+    approval_date: date | None = None
+    remarks: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    employee_name: str | None = None
+    department: str | None = None
+    requester_name: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class PayrollDashboardOut(BaseModel):
+    total_payroll_cost: Decimal = 0
+    net_payroll_amount: Decimal = 0
+    employees_paid: int = 0
+    pending_payroll: int = 0
+    total_compensation_cost: Decimal = 0
+    avg_salary: Decimal = 0
+    active_benefits: int = 0
+    pending_seniority: int = 0
+    pending_movements: int = 0
+
+
+# ── Employee Information Management Schemas ──
+
+class EmployeePersonalInfoIn(BaseModel):
+    name_khmer: str | None = None
+    gender: str | None = None
+    date_of_birth: date | None = None
+    place_of_birth: str | None = None
+    marital_status: str | None = None
+    nationality: str | None = None
+    phone: str | None = None
+    personal_email: str | None = None
+    address: str | None = None
+    permanent_address: str | None = None
+    national_id: str | None = None
+    id_issue_date: date | None = None
+    id_expiry_date: date | None = None
+    passport_no: str | None = None
+    passport_expiry_date: date | None = None
+    emergency_contact_name: str | None = None
+    emergency_contact_relation: str | None = None
+    emergency_contact_phone: str | None = None
+    spouse_name: str | None = None
+    children_count: int | None = 0
+    bank_name: str | None = None
+    bank_account_name: str | None = None
+    bank_account: str | None = None
+    profile_photo: str | None = None
+
+
+class EmployeeProfileIn(BaseModel):
+    join_date: date | None = None
+    confirmation_date: date | None = None
+    probation_end_date: date | None = None
+    contract_type: str = "Full-Time"
+    employment_status: str = "Active"
+    contract_start_date: date | None = None
+    contract_end_date: date | None = None
+    resignation_date: date | None = None
+    department: str | None = None
+    sub_department: str | None = None
+    position: str | None = None
+    job_grade: str | None = None
+    job_level: str | None = None
+    supervisor_id: int | None = None
+    department_head_id: int | None = None
+    work_email: str | None = None
+    extension_no: str | None = None
+    workstation: str | None = None
+    basic_salary: Decimal = 0
+    payroll_group: str | None = None
+    cost_center: str | None = None
+    employee_category: str | None = None
+
+
+class EmployeeFullOut(BaseModel):
+    id: int
+    user_id: int
+    name: str | None = None
+    email: str | None = None
+    emp_code: str | None = None
+    name_khmer: str | None = None
+    gender: str | None = None
+    date_of_birth: date | None = None
+    place_of_birth: str | None = None
+    marital_status: str | None = None
+    nationality: str | None = None
+    phone: str | None = None
+    personal_email: str | None = None
+    address: str | None = None
+    permanent_address: str | None = None
+    national_id: str | None = None
+    id_issue_date: date | None = None
+    id_expiry_date: date | None = None
+    passport_no: str | None = None
+    passport_expiry_date: date | None = None
+    emergency_contact_name: str | None = None
+    emergency_contact_relation: str | None = None
+    emergency_contact_phone: str | None = None
+    spouse_name: str | None = None
+    children_count: int | None = 0
+    bank_name: str | None = None
+    bank_account_name: str | None = None
+    bank_account: str | None = None
+    profile_photo: str | None = None
+    join_date: date | None = None
+    confirmation_date: date | None = None
+    probation_end_date: date | None = None
+    contract_type: str = "Full-Time"
+    employment_status: str = "Active"
+    contract_start_date: date | None = None
+    contract_end_date: date | None = None
+    resignation_date: date | None = None
+    department: str | None = None
+    sub_department: str | None = None
+    position: str | None = None
+    job_grade: str | None = None
+    job_level: str | None = None
+    supervisor_id: int | None = None
+    department_head_id: int | None = None
+    work_email: str | None = None
+    extension_no: str | None = None
+    workstation: str | None = None
+    basic_salary: Decimal = 0
+    payroll_group: str | None = None
+    cost_center: str | None = None
+    employee_category: str | None = None
+    status: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class DepartmentIn(BaseModel):
+    code: str
+    name: str
+    parent_id: int | None = None
+    department_head_id: int | None = None
+    effective_date: date | None = None
+    status: str = "Active"
+
+
+class DepartmentOut(BaseModel):
+    id: int
+    code: str
+    name: str
+    parent_id: int | None = None
+    department_head_id: int | None = None
+    effective_date: date | None = None
+    status: str = "Active"
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    head_name: str | None = None
+    parent_name: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class PositionIn(BaseModel):
+    code: str
+    title: str
+    job_level: str | None = None
+    grade: str | None = None
+    department_id: int | None = None
+    reports_to_id: int | None = None
+    headcount_budget: int | None = 0
+    effective_date: date | None = None
+    status: str = "Active"
+
+
+class PositionOut(BaseModel):
+    id: int
+    code: str
+    title: str
+    job_level: str | None = None
+    grade: str | None = None
+    department_id: int | None = None
+    reports_to_id: int | None = None
+    headcount_budget: int | None = 0
+    current_headcount: int | None = 0
+    effective_date: date | None = None
+    status: str = "Active"
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    department_name: str | None = None
+    reports_to_title: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class EmployeeDocumentIn(BaseModel):
+    user_id: int
+    doc_type: str
+    doc_name: str
+    doc_number: str | None = None
+    issue_date: date | None = None
+    expiry_date: date | None = None
+    file_path: str | None = None
+    status: str = "Active"
+    remarks: str | None = None
+
+
+class EmployeeDocumentOut(BaseModel):
+    id: int
+    user_id: int
+    doc_type: str
+    doc_name: str
+    doc_number: str | None = None
+    issue_date: date | None = None
+    expiry_date: date | None = None
+    file_path: str | None = None
+    file_version: int | None = 1
+    status: str = "Active"
+    remarks: str | None = None
+    uploaded_by: int | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    employee_name: str | None = None
+    uploader_name: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class EmpInfoDashboardOut(BaseModel):
+    total_employees: int = 0
+    male_count: int = 0
+    female_count: int = 0
+    active_employees: int = 0
+    total_departments: int = 0
+    total_positions: int = 0
+    total_documents: int = 0
+    expired_documents: int = 0
+    upcoming_birthdays: int = 0
