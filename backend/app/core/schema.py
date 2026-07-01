@@ -169,6 +169,7 @@ def ensure_runtime_schema(engine) -> None:
                 "review_status": "VARCHAR(30) DEFAULT 'Draft'",
                 "final_decision": "VARCHAR(30)",
                 "remarks": "TEXT",
+                "updated_at": "TIMESTAMP",
             },
         )
 
