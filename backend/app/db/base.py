@@ -1,5 +1,4 @@
-from sqlalchemy.orm import declarative_base
-
+from app.db.session import Base
 from app.models.attendance.models import Attendance
 from app.models.app_setting import AppSetting
 from app.models.company_location import CompanyLocation
@@ -37,8 +36,6 @@ from app.models.request import Request
 from app.models.shift.models import ShiftMaster
 from app.models.swap_request import SwapRequest
 from app.models.user import User
-
-Base = declarative_base()
 
 
 __all__ = [

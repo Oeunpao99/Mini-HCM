@@ -183,6 +183,7 @@ def ensure_runtime_schema(engine) -> None:
                 "training_type": "VARCHAR(50)",
                 "category": "VARCHAR(50)",
                 "end_date": "DATE",
+                "training_date": "DATE",
                 "duration": "DECIMAL(6, 1)",
                 "training_method": "VARCHAR(50)",
                 "attendance_status": "VARCHAR(30)",
