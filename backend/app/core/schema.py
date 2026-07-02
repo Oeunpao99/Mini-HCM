@@ -174,6 +174,33 @@ def ensure_runtime_schema(engine) -> None:
         )
         _normalize_performance_review_periods(engine)
 
+    if "training_records" in tables:
+        _add_missing_columns(
+            engine,
+            "training_records",
+            {
+                "plan_id": "INTEGER",
+                "training_type": "VARCHAR(50)",
+                "category": "VARCHAR(50)",
+                "end_date": "DATE",
+                "duration": "DECIMAL(6, 1)",
+                "training_method": "VARCHAR(50)",
+                "attendance_status": "VARCHAR(30)",
+                "completion_status": "VARCHAR(30) DEFAULT 'In Progress'",
+                "assessment_result": "VARCHAR(30) DEFAULT 'Not Applicable'",
+                "score": "DECIMAL(5, 2)",
+                "skills_gained": "TEXT",
+                "certification": "VARCHAR(10)",
+                "related_kpi_id": "INTEGER",
+                "related_job_role": "VARCHAR(100)",
+                "certificate_file": "TEXT",
+                "feedback_file": "TEXT",
+                "verified_by": "INTEGER",
+                "remarks": "TEXT",
+                "updated_at": "TIMESTAMP",
+            },
+        )
+
 
 def _add_missing_columns(engine, table_name: str, columns: dict[str, str]) -> None:
     inspector = inspect(engine)
