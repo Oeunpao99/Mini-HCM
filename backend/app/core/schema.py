@@ -226,6 +226,7 @@ def ensure_runtime_schema(engine) -> None:
                 "updated_at": "TIMESTAMP",
             },
         )
+        _sync_training_record_legacy_dates(engine)
         _normalize_training_record_statuses(engine)
 
 
@@ -318,6 +319,26 @@ def _normalize_training_record_statuses(engine) -> None:
                 """
             )
         )
+
+
+def _sync_training_record_legacy_dates(engine) -> None:
+    inspector = inspect(engine)
+    columns = {column["name"] for column in inspector.get_columns("training_records")}
+    if "start_date" not in columns:
+        return
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                UPDATE training_records
+                SET training_date = COALESCE(training_date, start_date),
+                    start_date = COALESCE(start_date, training_date, CURRENT_DATE)
+                """
+            )
+        )
+        if engine.dialect.name == "postgresql":
+            conn.execute(text("ALTER TABLE training_records ALTER COLUMN start_date DROP NOT NULL"))
 
 
 def _drop_enum_check(engine, table_name: str, column: str) -> None:

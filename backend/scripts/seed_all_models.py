@@ -62,6 +62,12 @@ def add_if_missing(db, model, filters: dict, values: dict):
     return row, True
 
 
+def table_has_column(db, table_name: str, column_name: str) -> bool:
+    bind = db.get_bind()
+    rows = bind.dialect.get_columns(bind.connect(), table_name)
+    return any(row["name"] == column_name for row in rows)
+
+
 def profile_for(db, user: User) -> EmployeeProfile:
     profile = db.query(EmployeeProfile).filter(EmployeeProfile.user_id == user.id).first()
     if not profile:
@@ -460,6 +466,10 @@ def seed_all_models() -> dict[str, int]:
         )
         mark("training_plans", made)
 
+        training_record_extra = {}
+        if table_has_column(db, "training_records", "start_date"):
+            training_record_extra["start_date"] = date(2026, 7, 15)
+
         for user in [dev_manager, dev_staff, hr_staff]:
             rec, made = add_if_missing(
                 db,
@@ -485,6 +495,7 @@ def seed_all_models() -> dict[str, int]:
                     "verified_by": hr.id,
                     "status": "Draft",
                     "remarks": "Seeded training record.",
+                    **training_record_extra,
                 },
             )
             mark("training_records", made)
