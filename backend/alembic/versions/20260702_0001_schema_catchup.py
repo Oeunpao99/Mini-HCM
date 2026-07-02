@@ -51,6 +51,24 @@ def upgrade() -> None:
         """
         DO $$
         BEGIN
+            IF to_regclass('training_records') IS NOT NULL THEN
+                UPDATE training_records
+                SET status = CASE
+                    WHEN lower(status::text) IN ('approved', 'completed', 'complete') THEN 'Approved'
+                    WHEN lower(status::text) IN ('rejected', 'cancelled', 'canceled') THEN 'Rejected'
+                    ELSE 'Draft'
+                END
+                WHERE status IS NULL
+                   OR status::text NOT IN ('Draft', 'Approved', 'Rejected');
+            END IF;
+        END $$;
+        """
+    )
+
+    op.execute(
+        """
+        DO $$
+        BEGIN
             IF to_regclass('performance_reviews') IS NOT NULL
                AND to_regtype('review_period_type') IS NOT NULL THEN
                 UPDATE performance_reviews

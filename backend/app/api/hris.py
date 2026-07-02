@@ -440,7 +440,11 @@ def dashboard(
     )
     training_open = (
         db.query(TrainingRecord)
-        .filter(TrainingRecord.user_id.in_(user_ids), TrainingRecord.status.in_(["planned", "in_progress"]))
+        .filter(
+            TrainingRecord.user_id.in_(user_ids),
+            TrainingRecord.status == "Draft",
+            TrainingRecord.completion_status.in_(["In Progress", "Not Completed"]),
+        )
         .count()
     )
     attendance_rate = round((present_today / total_employees) * 100, 2) if total_employees else 0

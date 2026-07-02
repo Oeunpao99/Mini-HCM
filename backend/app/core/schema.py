@@ -204,6 +204,7 @@ def ensure_runtime_schema(engine) -> None:
                 "updated_at": "TIMESTAMP",
             },
         )
+        _normalize_training_record_statuses(engine)
 
 
 def _add_missing_columns(engine, table_name: str, columns: dict[str, str]) -> None:
@@ -276,6 +277,25 @@ def _normalize_performance_review_periods(engine) -> None:
                     """
                 )
             )
+
+
+def _normalize_training_record_statuses(engine) -> None:
+    status_expr = "status::text" if engine.dialect.name == "postgresql" else "status"
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                f"""
+                UPDATE training_records
+                SET status = CASE
+                    WHEN lower({status_expr}) IN ('approved', 'completed', 'complete') THEN 'Approved'
+                    WHEN lower({status_expr}) IN ('rejected', 'cancelled', 'canceled') THEN 'Rejected'
+                    ELSE 'Draft'
+                END
+                WHERE status IS NULL
+                   OR {status_expr} NOT IN ('Draft', 'Approved', 'Rejected')
+                """
+            )
+        )
 
 
 def _drop_enum_check(engine, table_name: str, column: str) -> None:
