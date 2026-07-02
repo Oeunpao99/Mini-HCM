@@ -44,7 +44,7 @@ export const defaultPayrollForm = {
 
 export const defaultPerformanceForm = {
   user_id: "",
-  review_period: `${currentYear}-Q2`,
+  review_period: currentMonth <= 6 ? "Semester 1" : "Semester 2",
   score: "80",
   rating: "meets_expectations",
   comments: "",

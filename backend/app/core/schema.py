@@ -172,6 +172,7 @@ def ensure_runtime_schema(engine) -> None:
                 "updated_at": "TIMESTAMP",
             },
         )
+        _normalize_performance_review_periods(engine)
 
 
 def _add_missing_columns(engine, table_name: str, columns: dict[str, str]) -> None:
@@ -209,6 +210,41 @@ def _boolean_type(dialect: str, default: str | None) -> str:
     if dialect == "sqlite":
         return f"{type_name} DEFAULT 0"
     return f"{type_name} DEFAULT {default}"
+
+
+def _normalize_performance_review_periods(engine) -> None:
+    dialect = engine.dialect.name
+    with engine.begin() as conn:
+        if dialect == "postgresql":
+            conn.execute(
+                text(
+                    """
+                    UPDATE performance_reviews
+                    SET review_period = (
+                        CASE
+                            WHEN review_period::text ~ '^[0-9]{4}-Q[12]$' THEN 'Semester 1'
+                            WHEN review_period::text ~ '^[0-9]{4}-Q[34]$' THEN 'Semester 2'
+                            ELSE 'Annual'
+                        END
+                    )::review_period_type
+                    WHERE review_period::text NOT IN ('Probation', 'Semester 1', 'Semester 2', 'Annual')
+                    """
+                )
+            )
+        else:
+            conn.execute(
+                text(
+                    """
+                    UPDATE performance_reviews
+                    SET review_period = CASE
+                        WHEN review_period LIKE '%-Q1' OR review_period LIKE '%-Q2' THEN 'Semester 1'
+                        WHEN review_period LIKE '%-Q3' OR review_period LIKE '%-Q4' THEN 'Semester 2'
+                        ELSE 'Annual'
+                    END
+                    WHERE review_period NOT IN ('Probation', 'Semester 1', 'Semester 2', 'Annual')
+                    """
+                )
+            )
 
 
 def _drop_enum_check(engine, table_name: str, column: str) -> None:
