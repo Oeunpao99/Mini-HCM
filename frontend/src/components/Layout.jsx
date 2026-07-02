@@ -92,11 +92,11 @@ const moduleGroups = [
     icon: <FiBriefcase className="h-5 w-5" aria-hidden />,
     items: [
       { to: "/performance", label: "Dashboard", icon: <FiBarChart2 className="h-4 w-4" aria-hidden /> },
-      { to: "/performance?tab=kpi-planning", label: "KPI Planning", icon: <FiTarget className="h-4 w-4" aria-hidden /> },
+      { to: "/performance?tab=kpi-planning", label: "KPI Setting", icon: <FiTarget className="h-4 w-4" aria-hidden /> },
       { to: "/performance?tab=kpi-monitoring", label: "KPI Monitoring", icon: <FiActivity className="h-4 w-4" aria-hidden /> },
       { to: "/performance?tab=reviews", label: "Performance Review", icon: <FiStar className="h-4 w-4" aria-hidden /> },
       { to: "/performance?tab=career", label: "Career Development", icon: <FiTrendingUp className="h-4 w-4" aria-hidden /> },
-      { to: "/performance?tab=pip", label: "PIP", icon: <FiAlertCircle className="h-4 w-4" aria-hidden /> },
+      { to: "/performance?tab=pip", label: "Performance Improvement Plan (PIP)", icon: <FiAlertCircle className="h-4 w-4" aria-hidden /> },
     ],
   },
   {
