@@ -4,6 +4,7 @@ from decimal import Decimal
 from sqlalchemy import inspect, text
 
 from app.core.schema import ensure_runtime_schema
+from app.core.security import get_password_hash
 from app.core.seed import seed_default_data
 from app.db.session import Base, SessionLocal, engine
 from app.models.app_setting import AppSetting
@@ -43,6 +44,49 @@ from app.models.request import Request
 from app.models.shift.models import ShiftMaster
 from app.models.swap_request import SwapRequest
 from app.models.user import User
+
+
+EXTRA_STAFF = [
+    ("EMP012", "Sok Dara", "sok.dara@example.com", "Developer", "Web Developer", "Web Developer", "G2", "Staff", "Male", Decimal("950.00")),
+    ("EMP013", "Chan Sophea", "chan.sophea@example.com", "Developer", "Web Developer", "Frontend Developer", "G2", "Staff", "Female", Decimal("980.00")),
+    ("EMP014", "Vannak Kim", "vannak.kim@example.com", "Developer", "AI", "Backend Developer", "G3", "Staff", "Male", Decimal("1100.00")),
+    ("EMP015", "Mony Rathana", "mony.rathana@example.com", "Developer", "AI", "QA Engineer", "G2", "Staff", "Female", Decimal("900.00")),
+    ("EMP016", "Chea Visal", "chea.visal@example.com", "Developer", "Support", "DevOps Support", "G3", "Senior", "Male", Decimal("1200.00")),
+    ("EMP017", "Lim Sopheak", "lim.sopheak@example.com", "Developer", "Web Developer", "Mobile Developer", "G2", "Staff", "Male", Decimal("970.00")),
+    ("EMP018", "Phan Sovann", "phan.sovann@example.com", "Developer", "Web Developer", "UI Designer", "G2", "Staff", "Female", Decimal("920.00")),
+    ("EMP019", "Nim Panha", "nim.panha@example.com", "Developer", "AI", "Data Analyst", "G3", "Staff", "Male", Decimal("1050.00")),
+    ("EMP020", "Long Sreyneang", "long.sreyneang@example.com", "Human Resources", "Recruitment", "Recruitment Officer", "G2", "Staff", "Female", Decimal("900.00")),
+    ("EMP021", "Heng Sreypov", "heng.sreypov@example.com", "Human Resources", "Recruitment", "HR Officer", "G2", "Staff", "Female", Decimal("920.00")),
+    ("EMP022", "Prak Bopha", "prak.bopha@example.com", "Human Resources", "Payroll", "Payroll Assistant", "G2", "Staff", "Female", Decimal("930.00")),
+    ("EMP023", "Meas Sovichea", "meas.sovichea@example.com", "Human Resources", "Administration", "Admin Officer", "G2", "Staff", "Male", Decimal("900.00")),
+    ("EMP024", "Touch Rina", "touch.rina@example.com", "Human Resources", "Employee Relations", "Employee Relations Officer", "G3", "Staff", "Female", Decimal("1000.00")),
+    ("EMP025", "Ly Sambath", "ly.sambath@example.com", "Finance", "Payroll", "Accountant", "G3", "Staff", "Male", Decimal("1050.00")),
+    ("EMP026", "Kong Sreymom", "kong.sreymom@example.com", "Finance", "Accounting", "Accountant", "G3", "Staff", "Female", Decimal("1080.00")),
+    ("EMP027", "Pich Rithy", "pich.rithy@example.com", "Finance", "Accounting", "Finance Officer", "G2", "Staff", "Male", Decimal("940.00")),
+    ("EMP028", "Sin Chantha", "sin.chantha@example.com", "Finance", "Procurement", "Procurement Officer", "G2", "Staff", "Female", Decimal("930.00")),
+    ("EMP029", "Yim Sothea", "yim.sothea@example.com", "Finance", "Payroll", "Payroll Analyst", "G3", "Senior", "Male", Decimal("1150.00")),
+    ("EMP030", "Ros Samnang", "ros.samnang@example.com", "Operations", "Support", "Operations Officer", "G2", "Staff", "Male", Decimal("900.00")),
+    ("EMP031", "Chhim Lina", "chhim.lina@example.com", "Operations", "Support", "Customer Support Officer", "G2", "Staff", "Female", Decimal("880.00")),
+    ("EMP032", "Tep Vireak", "tep.vireak@example.com", "Operations", "Logistics", "Logistics Coordinator", "G2", "Staff", "Male", Decimal("920.00")),
+    ("EMP033", "San Sreyka", "san.sreyka@example.com", "Operations", "Facilities", "Facilities Officer", "G2", "Staff", "Female", Decimal("890.00")),
+    ("EMP034", "Ouk Piseth", "ouk.piseth@example.com", "Operations", "Support", "Support Supervisor", "G3", "Senior", "Male", Decimal("1100.00")),
+    ("EMP035", "Keo Davy", "keo.davy@example.com", "Sales", "Business Development", "Sales Executive", "G2", "Staff", "Female", Decimal("950.00")),
+    ("EMP036", "Mam Vuthy", "mam.vuthy@example.com", "Sales", "Business Development", "Account Executive", "G2", "Staff", "Male", Decimal("970.00")),
+    ("EMP037", "Nou Sreylin", "nou.sreylin@example.com", "Sales", "Customer Success", "Customer Success Officer", "G2", "Staff", "Female", Decimal("940.00")),
+    ("EMP038", "Ieng Bora", "ieng.bora@example.com", "Sales", "Customer Success", "Sales Support", "G1", "Staff", "Male", Decimal("850.00")),
+    ("EMP039", "Chhay Makara", "chhay.makara@example.com", "Sales", "Business Development", "Sales Coordinator", "G2", "Staff", "Male", Decimal("920.00")),
+    ("EMP040", "Sam Sreyroth", "sam.sreyroth@example.com", "Administration", "Office Admin", "Office Administrator", "G2", "Staff", "Female", Decimal("890.00")),
+    ("EMP041", "Mao Sopheara", "mao.sopheara@example.com", "Administration", "Office Admin", "Receptionist", "G1", "Staff", "Female", Decimal("780.00")),
+    ("EMP042", "Choun Narith", "choun.narith@example.com", "Administration", "Security", "Security Officer", "G1", "Staff", "Male", Decimal("760.00")),
+    ("EMP043", "Pov Srey Nich", "pov.sreynich@example.com", "Administration", "Office Admin", "Document Controller", "G2", "Staff", "Female", Decimal("860.00")),
+    ("EMP044", "Khem Virak", "khem.virak@example.com", "Developer", "Web Developer", "Junior Developer", "G1", "Staff", "Male", Decimal("820.00")),
+    ("EMP045", "Em Srey Leak", "em.sreyleak@example.com", "Finance", "Accounting", "Junior Accountant", "G1", "Staff", "Female", Decimal("820.00")),
+    ("EMP046", "Sek Bunthorn", "sek.bunthorn@example.com", "Operations", "Support", "Field Support Officer", "G2", "Staff", "Male", Decimal("900.00")),
+    ("EMP047", "Dy Sovan", "dy.sovan@example.com", "Human Resources", "Training", "Training Coordinator", "G2", "Staff", "Female", Decimal("920.00")),
+    ("EMP048", "Prom Kanha", "prom.kanha@example.com", "Sales", "Marketing", "Marketing Officer", "G2", "Staff", "Female", Decimal("940.00")),
+    ("EMP049", "Hun Vichet", "hun.vichet@example.com", "Developer", "Support", "IT Support Officer", "G2", "Staff", "Male", Decimal("900.00")),
+    ("EMP050", "Sorn Sreypich", "sorn.sreypich@example.com", "Administration", "Office Admin", "Executive Assistant", "G2", "Staff", "Female", Decimal("900.00")),
+]
 
 
 def first_user(db, emp_code: str) -> User:
@@ -92,6 +136,29 @@ def profile_for(db, user: User) -> EmployeeProfile:
     return profile
 
 
+def upsert_staff_user(db, emp_code: str, name: str, email: str, department: str, manager_id: int | None) -> tuple[User, bool]:
+    user = db.query(User).filter(User.emp_code == emp_code).first()
+    if user:
+        user.name = name
+        user.email = email
+        user.role = "staff"
+        user.department = department
+        user.manager_id = manager_id
+        return user, False
+    user = User(
+        emp_code=emp_code,
+        name=name,
+        email=email,
+        password_hash=get_password_hash("Staff@123"),
+        role="staff",
+        department=department,
+        manager_id=manager_id,
+    )
+    db.add(user)
+    db.flush()
+    return user, True
+
+
 def seed_all_models() -> dict[str, int]:
     Base.metadata.create_all(bind=engine)
     ensure_runtime_schema(engine)
@@ -119,6 +186,30 @@ def seed_all_models() -> dict[str, int]:
         ops_staff = first_user(db, "EMP010")
         payroll = first_user(db, "EMP011")
         users = [hr, dev_head, finance_head, hr_head, ops_head, dev_manager, dev_staff, finance_staff, hr_staff, ops_staff, payroll]
+        manager_by_department = {
+            "Developer": dev_manager.id,
+            "Finance": finance_head.id,
+            "HR": hr_head.id,
+            "Human Resources": hr_head.id,
+            "Operations": ops_head.id,
+            "Sales": ops_head.id,
+            "Administration": hr_head.id,
+        }
+        extra_users = []
+        staff_profile_data = {}
+        for emp_code, name, email, department, sub_department, position, grade, level, gender, salary in EXTRA_STAFF:
+            user, made = upsert_staff_user(db, emp_code, name, email, department, manager_by_department.get(department))
+            extra_users.append(user)
+            staff_profile_data[emp_code] = {
+                "sub_department": sub_department,
+                "position": position,
+                "job_grade": grade,
+                "job_level": level,
+                "gender": gender,
+                "basic_salary": salary,
+            }
+            mark("users", made)
+        users = users + extra_users
 
         loc, made = add_if_missing(
             db,
@@ -135,13 +226,20 @@ def seed_all_models() -> dict[str, int]:
             {
                 "key": "hris_lookup_settings",
                 "value": (
-                    '{"departments":["Human Resources","Developer","Finance","Operations"],'
-                    '"sub_departments":["Recruitment","Payroll","AI","Web Developer","Support"],'
-                    '"positions":["HR Manager","Department Head","Line Manager","Payroll Officer","Employee"],'
+                    '{"departments":["Human Resources","Developer","Finance","Operations","Sales","Administration"],'
+                    '"sub_departments":["Recruitment","Payroll","AI","Web Developer","Support","Accounting","Procurement","Logistics","Facilities","Business Development","Customer Success","Marketing","Office Admin","Security","Training","Employee Relations"],'
+                    '"positions":["HR Manager","Department Head","Line Manager","Payroll Officer","Employee","Web Developer","Frontend Developer","Backend Developer","QA Engineer","Accountant","Finance Officer","Operations Officer","Sales Executive","Customer Success Officer","Office Administrator","Security Officer"],'
                     '"job_grades":["G1","G2","G3","G4","M1"],'
-                    '"employment_statuses":["active","on_leave","inactive","resigned"]}'
+                    '"employment_statuses":["Active","On Leave","Inactive","Resigned"]}'
                 ),
             },
+        )
+        lookups.value = (
+            '{"departments":["Human Resources","Developer","Finance","Operations","Sales","Administration"],'
+            '"sub_departments":["Recruitment","Payroll","AI","Web Developer","Support","Accounting","Procurement","Logistics","Facilities","Business Development","Customer Success","Marketing","Office Admin","Security","Training","Employee Relations"],'
+            '"positions":["HR Manager","Department Head","Line Manager","Payroll Officer","Employee","Web Developer","Frontend Developer","Backend Developer","QA Engineer","Accountant","Finance Officer","Operations Officer","Sales Executive","Customer Success Officer","Office Administrator","Security Officer"],'
+            '"job_grades":["G1","G2","G3","G4","M1"],'
+            '"employment_statuses":["Active","On Leave","Inactive","Resigned"]}'
         )
         mark("app_settings", made)
 
@@ -151,6 +249,8 @@ def seed_all_models() -> dict[str, int]:
             ("DEV", "Developer", dev_head),
             ("FIN", "Finance", finance_head),
             ("OPS", "Operations", ops_head),
+            ("SALES", "Sales", ops_head),
+            ("ADMIN", "Administration", hr_head),
         ]:
             dept, made = add_if_missing(
                 db,
@@ -169,6 +269,8 @@ def seed_all_models() -> dict[str, int]:
             ("DEV-WEB", "Web Developer", "Staff", "G2", "DEV", 8),
             ("FIN-PAY", "Payroll Officer", "Senior", "G3", "FIN", 2),
             ("OPS-SUP", "Operations Support", "Staff", "G1", "OPS", 6),
+            ("SALES-EXEC", "Sales Executive", "Staff", "G2", "SALES", 8),
+            ("ADMIN-OFF", "Office Administrator", "Staff", "G2", "ADMIN", 8),
         ]:
             pos, made = add_if_missing(
                 db,
@@ -191,23 +293,37 @@ def seed_all_models() -> dict[str, int]:
 
         for user in users:
             profile = profile_for(db, user)
+            extra_profile = staff_profile_data.get(user.emp_code, {})
             profile.name = user.name
             profile.work_email = user.email
             profile.department = user.department
+            profile.sub_department = extra_profile.get("sub_department", profile.sub_department)
+            profile.position = extra_profile.get("position", profile.position)
             profile.join_date = profile.join_date or date(2026, 1, 1)
             profile.confirmation_date = profile.confirmation_date or date(2026, 4, 1)
             profile.probation_end_date = profile.probation_end_date or date(2026, 3, 31)
-            profile.gender = profile.gender or ("Female" if user.emp_code in {"EMP001", "EMP004", "EMP009"} else "Male")
+            profile.gender = profile.gender or extra_profile.get("gender") or ("Female" if user.emp_code in {"EMP001", "EMP004", "EMP009"} else "Male")
             profile.nationality = profile.nationality or "Cambodian"
             profile.marital_status = profile.marital_status or "Single"
-            profile.job_grade = profile.job_grade or ("M1" if user.role == "department_head" else "G2")
-            profile.job_level = profile.job_level or ("Manager" if user.role in {"management_hr", "department_head", "line_manager"} else "Staff")
+            profile.job_grade = extra_profile.get("job_grade", profile.job_grade or ("M1" if user.role == "department_head" else "G2"))
+            profile.job_level = extra_profile.get("job_level", profile.job_level or ("Manager" if user.role in {"management_hr", "department_head", "line_manager"} else "Staff"))
+            profile.basic_salary = extra_profile.get("basic_salary", profile.basic_salary)
+            profile.phone = profile.phone or f"+855 12 {user.id:06d}"
+            profile.address = profile.address or "Phnom Penh"
+            profile.bank_name = profile.bank_name or "ABA Bank"
+            profile.bank_account_name = profile.bank_account_name or user.name
+            profile.bank_account = profile.bank_account or f"001{user.id:07d}"
+            profile.payroll_group = profile.payroll_group or "Monthly"
+            profile.employee_category = profile.employee_category or "Regular"
             profile.supervisor_id = profile.supervisor_id or user.manager_id
             profile.department_head_id = profile.department_head_id or {
                 "Developer": dev_head.id,
                 "Finance": finance_head.id,
                 "HR": hr_head.id,
+                "Human Resources": hr_head.id,
                 "Operations": ops_head.id,
+                "Sales": ops_head.id,
+                "Administration": hr_head.id,
             }.get(user.department)
 
             entitlement, made = add_if_missing(
@@ -482,7 +598,7 @@ def seed_all_models() -> dict[str, int]:
         )
         mark("training_plans", made)
 
-        for user in [dev_manager, dev_staff, hr_staff]:
+        for user in [dev_manager, dev_staff, hr_staff, *extra_users[:12]]:
             rec, made = add_if_missing(
                 db,
                 TrainingRecord,
@@ -673,7 +789,7 @@ def seed_all_models() -> dict[str, int]:
         batch_deductions = Decimal("0.00")
         batch_net = Decimal("0.00")
         batch_count = 0
-        for user in users[:6]:
+        for user in users:
             profile = profile_for(db, user)
             basic = Decimal(profile.basic_salary or 900)
             allowance = Decimal("50.00")
