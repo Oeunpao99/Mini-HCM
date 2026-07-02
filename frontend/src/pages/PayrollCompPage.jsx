@@ -22,7 +22,7 @@ import {
 } from "react-icons/fi";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
-import { Field } from "./hris/HrisCommon";
+import { inputClass } from "./hris/HrisCommon";
 
 const PAYROLL_CYCLES = ["Monthly", "Bi-Weekly", "Weekly"];
 const BATCH_STATUSES = ["Draft", "Calculated", "Approved", "Paid", "Reversed"];
@@ -132,6 +132,32 @@ const Modal = ({ open, onClose, title, children }) => {
 
 // ──── Payroll Processing ────
 
+const Field = ({ label, type = "text", value, onChange, options = [], required = false }) => (
+  <label className="grid gap-2 text-sm font-bold text-slate-700">
+    <span>
+      {label}
+      {required && <span className="ml-1 text-red-500">*</span>}
+    </span>
+    {type === "select" ? (
+      <select className={inputClass} value={value ?? ""} onChange={(event) => onChange(event.target.value)}>
+        <option value="">Select {label}</option>
+        {options.map((option) => {
+          const optionValue = typeof option === "object" ? option.value : option;
+          const optionLabel = typeof option === "object" ? option.label : option;
+          return <option key={optionValue} value={optionValue}>{optionLabel}</option>;
+        })}
+      </select>
+    ) : (
+      <input type={type} className={inputClass} value={value ?? ""} onChange={(event) => onChange(event.target.value)} />
+    )}
+  </label>
+);
+
+const employeeOptionsFrom = (employees) => employees.map((employee) => ({
+  value: employee.user_id ?? employee.id,
+  label: `${employee.name} (${employee.emp_code})`,
+}));
+
 const emptyBatchForm = () => ({
   month: new Date().getMonth() + 1, year: new Date().getFullYear(),
   cycle: "Monthly", notes: "",
@@ -143,20 +169,53 @@ const emptyPayrollEmpForm = () => ({
   ot_hours: 0, ot_amount: 0, nssf: 0, tax: 0,
 });
 
-const PayrollProcessingView = ({ batches, employees, employeesMeta, onRefresh }) => {
+const PayrollProcessingView = ({ batches, onRefresh }) => {
   const [batchModal, setBatchModal] = useState(false);
   const [empModal, setEmpModal] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [batchForm, setBatchForm] = useState(emptyBatchForm());
   const [empForm, setEmpForm] = useState(emptyPayrollEmpForm());
+  const [editingEmpId, setEditingEmpId] = useState(null);
   const [employeeOptions, setEmployeeOptions] = useState([]);
+  const [payrollEmployees, setPayrollEmployees] = useState([]);
 
   useEffect(() => {
     api.get("/api/hris/employees?limit=500").then(({ data }) => setEmployeeOptions(data || [])).catch(() => {});
   }, []);
 
   const openBatchModal = () => { setBatchForm(emptyBatchForm()); setBatchModal(true); };
-  const openEmpModal = (batch) => { setSelectedBatch(batch); setEmpForm(emptyPayrollEmpForm()); setEmpModal(true); };
+  const loadBatchEmployees = async (batch) => {
+    setSelectedBatch(batch);
+    const { data } = await api.get(`/api/payroll-comp/batches/${batch.id}/employees`);
+    setPayrollEmployees(data || []);
+  };
+  const openEmpModal = (batch) => {
+    setSelectedBatch(batch);
+    setEditingEmpId(null);
+    setEmpForm(emptyPayrollEmpForm());
+    setEmpModal(true);
+  };
+  const openEditEmpModal = (row) => {
+    setEditingEmpId(row.id);
+    setEmpForm({
+      user_id: row.user_id,
+      basic_salary: Number(row.basic_salary || 0),
+      working_days: Number(row.working_days || 0),
+      present_days: Number(row.present_days || 0),
+      absent_days: Number(row.absent_days || 0),
+      leave_days: Number(row.leave_days || 0),
+      late_deduction: Number(row.late_deduction || 0),
+      ot_hours: Number(row.ot_hours || 0),
+      ot_amount: Number(row.ot_amount || 0),
+      nssf: Number(row.nssf || 0),
+      tax: Number(row.tax || 0),
+      allowances: row.allowances || null,
+      other_deductions: row.other_deductions || null,
+      payment_date: row.payment_date || null,
+      payment_method: row.payment_method || null,
+    });
+    setEmpModal(true);
+  };
 
   const saveBatch = async () => {
     await api.post("/api/payroll-comp/batches", batchForm);
@@ -165,8 +224,13 @@ const PayrollProcessingView = ({ batches, employees, employeesMeta, onRefresh })
   };
 
   const saveEmp = async () => {
-    await api.post(`/api/payroll-comp/batches/${selectedBatch.id}/employees`, empForm);
+    if (editingEmpId) {
+      await api.put(`/api/payroll-comp/payroll-employees/${editingEmpId}`, empForm);
+    } else {
+      await api.post(`/api/payroll-comp/batches/${selectedBatch.id}/employees`, empForm);
+    }
     setEmpModal(false);
+    if (selectedBatch) await loadBatchEmployees(selectedBatch);
     onRefresh();
   };
 
@@ -201,7 +265,7 @@ const PayrollProcessingView = ({ batches, employees, employeesMeta, onRefresh })
         <h3 className="text-lg font-bold text-[#111827]">Payroll Batches</h3>
         <button onClick={openBatchModal} className="flex h-9 items-center gap-2 rounded-lg bg-[#166534] px-4 text-sm font-semibold text-white hover:bg-[#145226]"><FiPlus className="h-4 w-4" /> New Batch</button>
       </div>
-      <Table columns={batchColumns} data={batches} onEdit={(r) => openEmpModal(r)} onDelete={async (id) => { await api.delete(`/api/payroll-comp/batches/${id}`); onRefresh(); }} />
+      <Table columns={batchColumns} data={batches} onEdit={loadBatchEmployees} onDelete={async (id) => { await api.delete(`/api/payroll-comp/batches/${id}`); setSelectedBatch(null); setPayrollEmployees([]); onRefresh(); }} />
       {selectedBatch && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -213,7 +277,7 @@ const PayrollProcessingView = ({ batches, employees, employeesMeta, onRefresh })
               <button onClick={() => openEmpModal(selectedBatch)} className="flex h-9 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-[#6B7280] hover:bg-slate-50"><FiUserPlus className="h-4 w-4" /> Add Employee</button>
             </div>
           </div>
-          <Table columns={empColumns} data={employees.filter((e) => e.batch_id === selectedBatch.id)} onEdit={async (r) => {}} onDelete={async (id) => { await api.delete(`/api/payroll-comp/payroll-employees/${id}`); onRefresh(); }} />
+          <Table columns={empColumns} data={payrollEmployees} onEdit={openEditEmpModal} onDelete={async (id) => { await api.delete(`/api/payroll-comp/payroll-employees/${id}`); await loadBatchEmployees(selectedBatch); onRefresh(); }} />
         </div>
       )}
       <Modal open={batchModal} onClose={() => setBatchModal(false)} title="New Payroll Batch">
@@ -225,19 +289,23 @@ const PayrollProcessingView = ({ batches, employees, employeesMeta, onRefresh })
         </div>
         <button onClick={saveBatch} className="mt-4 h-10 w-full rounded-lg bg-[#166534] text-sm font-semibold text-white hover:bg-[#145226]">Create Batch</button>
       </Modal>
-      <Modal open={empModal} onClose={() => setEmpModal(false)} title="Add Employee to Payroll">
+      <Modal open={empModal} onClose={() => setEmpModal(false)} title={editingEmpId ? "Edit Employee Payroll" : "Add Employee to Payroll"}>
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Employee" type="select" value={empForm.user_id} onChange={(v) => setEmpForm({ ...empForm, user_id: Number(v) })} options={employeeOptions.map((e) => ({ value: e.id, label: `${e.name} (${e.emp_code})` }))} />
+          <Field label="Employee" type="select" value={empForm.user_id} onChange={(v) => setEmpForm({ ...empForm, user_id: Number(v) })} options={employeeOptionsFrom(employeeOptions)} />
           <Field label="Basic Salary" type="number" value={empForm.basic_salary} onChange={(v) => setEmpForm({ ...empForm, basic_salary: Number(v) })} />
           <Field label="Working Days" type="number" value={empForm.working_days} onChange={(v) => setEmpForm({ ...empForm, working_days: Number(v) })} />
           <Field label="Present Days" type="number" value={empForm.present_days} onChange={(v) => setEmpForm({ ...empForm, present_days: Number(v) })} />
+          <Field label="Absent Days" type="number" value={empForm.absent_days} onChange={(v) => setEmpForm({ ...empForm, absent_days: Number(v) })} />
+          <Field label="Leave Days" type="number" value={empForm.leave_days} onChange={(v) => setEmpForm({ ...empForm, leave_days: Number(v) })} />
           <Field label="Late Deduction" type="number" value={empForm.late_deduction} onChange={(v) => setEmpForm({ ...empForm, late_deduction: Number(v) })} />
           <Field label="OT Hours" type="number" value={empForm.ot_hours} onChange={(v) => setEmpForm({ ...empForm, ot_hours: Number(v) })} />
           <Field label="OT Amount" type="number" value={empForm.ot_amount} onChange={(v) => setEmpForm({ ...empForm, ot_amount: Number(v) })} />
           <Field label="NSSF" type="number" value={empForm.nssf} onChange={(v) => setEmpForm({ ...empForm, nssf: Number(v) })} />
           <Field label="Tax" type="number" value={empForm.tax} onChange={(v) => setEmpForm({ ...empForm, tax: Number(v) })} />
+          <Field label="Payment Date" type="date" value={empForm.payment_date || ""} onChange={(v) => setEmpForm({ ...empForm, payment_date: v || null })} />
+          <Field label="Payment Method" type="select" value={empForm.payment_method || ""} onChange={(v) => setEmpForm({ ...empForm, payment_method: v || null })} options={PAYMENT_METHODS} />
         </div>
-        <button onClick={saveEmp} className="mt-4 h-10 w-full rounded-lg bg-[#166534] text-sm font-semibold text-white hover:bg-[#145226]">Add Employee</button>
+        <button onClick={saveEmp} className="mt-4 h-10 w-full rounded-lg bg-[#166534] text-sm font-semibold text-white hover:bg-[#145226]">{editingEmpId ? "Update Employee Payroll" : "Add Employee"}</button>
       </Modal>
     </div>
   );

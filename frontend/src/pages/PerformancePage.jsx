@@ -29,15 +29,15 @@ const DEV_STATUSES = ["Active", "Completed", "On Hold", "Promoted", "Closed"];
 const PIP_STATUS_LIST = ["Draft", "Active", "On Track", "At Risk", "Completed", "Extended", "Failed", "Closed"];
 const REVIEW_FREQUENCIES = ["Weekly", "Bi-Weekly", "Monthly"];
 const PIP_RESULTS = ["Passed", "Extended", "Failed", "Promoted Improvement"];
-const PIP_RECS = ["Continue Employment", "Extend PIP", "Terminate"];
+const PIP_RECS = ["Continue Employment", "Extend Performance Improvement Plan (PIP)", "Terminate"];
 
 const mainTabs = [
   { id: "dashboard", label: "Dashboard", icon: FiPieChart },
-  { id: "kpi-planning", label: "KPI Planning", icon: FiTarget },
+  { id: "kpi-planning", label: "KPI Setting", icon: FiTarget },
   { id: "kpi-monitoring", label: "KPI Monitoring", icon: FiActivity },
   { id: "reviews", label: "Performance Review", icon: FiStar },
   { id: "career", label: "Career Development", icon: FiTrendingUp },
-  { id: "pip", label: "PIP", icon: FiAlertCircle },
+  { id: "pip", label: "Performance Improvement Plan (PIP)", icon: FiAlertCircle },
 ];
 
 const TabButton = ({ active, onClick, children }) => (
@@ -169,7 +169,7 @@ export default function PerformancePage() {
   // Dashboard
   const [dashboard, setDashboard] = useState(null);
 
-  // KPI Plans
+  // KPI Setting
   const [kpiPlans, setKpiPlans] = useState([]);
   const [kpiPlanForm, setKpiPlanForm] = useState(defaultKpiPlanForm());
   const [kpiPlanModal, setKpiPlanModal] = useState(false);
@@ -192,7 +192,7 @@ export default function PerformancePage() {
   const [careerModal, setCareerModal] = useState(false);
   const [editingCareer, setEditingCareer] = useState(null);
 
-  // PIP
+  // Performance Improvement Plan (PIP)
   const [pipList, setPipList] = useState([]);
   const [pipForm, setPipForm] = useState(defaultPipForm());
   const [pipModal, setPipModal] = useState(false);
@@ -273,7 +273,7 @@ export default function PerformancePage() {
 
   useEffect(() => { loadAll(); }, [activeTab]);
 
-  // ─── KPI Plan Handlers ─────────────────────────────────
+  // ─── KPI Setting Handlers ───────────────────────────────
 
   const openNewKpiPlan = () => {
     setEditingKpiPlan(null);
@@ -528,7 +528,7 @@ export default function PerformancePage() {
     } catch {}
   };
 
-  // ─── PIP Handlers ──────────────────────────────────────
+  // ─── Performance Improvement Plan (PIP) Handlers ───────
 
   const openNewPip = () => {
     setEditingPip(null);
@@ -563,7 +563,7 @@ export default function PerformancePage() {
       setPipModal(false);
       loadPip();
     } catch (err) {
-      alert(err?.response?.data?.detail || "Error saving PIP");
+      alert(err?.response?.data?.detail || "Error saving Performance Improvement Plan (PIP)");
     }
   };
 
@@ -584,7 +584,7 @@ export default function PerformancePage() {
   };
 
   const deletePip = async (id) => {
-    if (!confirm("Delete this PIP?")) return;
+    if (!confirm("Delete this Performance Improvement Plan (PIP)?")) return;
     try {
       await api.delete(`/api/performance/pip/${id}`);
       loadPip();
@@ -606,7 +606,7 @@ export default function PerformancePage() {
           <DashboardStatCard icon={FiTarget} label="Total KPI Plans" value={d.total_kpi_plans} helper={`${d.active_kpis} active`} tone="bg-emerald-600 text-white" />
           <DashboardStatCard icon={FiClock} label="Pending Approval" value={d.pending_approval} helper="Awaiting review" tone="bg-amber-500 text-white" />
           <DashboardStatCard icon={FiStar} label="Reviews Completed" value={d.reviews_completed} helper={`${d.pending_reviews} pending`} tone="bg-blue-600 text-white" />
-          <DashboardStatCard icon={FiAlertCircle} label="Active PIP Cases" value={d.active_pip} helper={`${d.completed_pip} completed`} tone="bg-red-500 text-white" />
+          <DashboardStatCard icon={FiAlertCircle} label="Active Performance Improvement Plan (PIP) Cases" value={d.active_pip} helper={`${d.completed_pip} completed`} tone="bg-red-500 text-white" />
           <DashboardStatCard icon={FiTrendingUp} label="Active Dev Plans" value={d.active_development_plans} helper={`${d.promotion_candidates} ready`} tone="bg-purple-600 text-white" />
         </div>
 
@@ -644,14 +644,14 @@ export default function PerformancePage() {
     );
   };
 
-  // ─── Render KPI Planning ───────────────────────────────
+  // ─── Render KPI Setting ────────────────────────────────
 
   const renderKpiPlanning = () => {
     const pendingApprovalPlans = kpiPlans.filter((plan) => plan.final_status === "Pending Approval");
     const approvedPlans = kpiPlans.filter((plan) => plan.final_status === "Approved" || plan.final_status === "Active");
     const rejectedPlans = kpiPlans.filter((plan) => plan.line_manager_approval === "Rejected" || plan.hr_review === "Rejected" || plan.final_status === "Cancelled");
     const kpiSubTabs = [
-      { id: "plans", label: "KPI Plans" },
+      { id: "plans", label: "KPI Setting" },
       { id: "approval", label: "KPI Approval" },
       { id: "templates", label: "KPI Templates" },
       { id: "history", label: "KPI History" },
@@ -668,7 +668,7 @@ export default function PerformancePage() {
           ))}
           <div className="ml-auto pb-2">
             <button onClick={openNewKpiPlan} className="flex h-10 items-center gap-2 rounded-lg bg-[#166432] px-4 text-sm font-bold text-white shadow hover:bg-[#1a7a3e]">
-              <FiPlus className="h-4 w-4" /> New KPI Plan
+              <FiPlus className="h-4 w-4" /> New KPI Setting
             </button>
           </div>
         </div>
@@ -678,7 +678,7 @@ export default function PerformancePage() {
             <table className="w-full text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase text-slate-500">
                 <tr>
-                  <th className="px-4 py-3">Plan ID</th>
+                  <th className="px-4 py-3">KPI Plan ID</th>
                   <th className="px-4 py-3">KPI Code</th>
                   <th className="px-4 py-3">Employee</th>
                   <th className="px-4 py-3">Department</th>
@@ -697,7 +697,7 @@ export default function PerformancePage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {kpiPlans.length === 0 ? (
-                  <tr><td colSpan={15}><EmptyState message="No KPI plans yet" /></td></tr>
+                  <tr><td colSpan={15}><EmptyState message="No KPI settings yet" /></td></tr>
                 ) : kpiPlans.map((plan) => (
                   <tr key={plan.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3 font-bold text-slate-700">{plan.kpi_plan_id}</td>
@@ -797,9 +797,9 @@ export default function PerformancePage() {
 
         {kpiSubTab === "history" && (
           <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-            <h3 className="mb-4 text-base font-extrabold text-slate-900">Previous KPI Plans</h3>
+            <h3 className="mb-4 text-base font-extrabold text-slate-900">Previous KPI Settings</h3>
             {kpiPlans.filter((p) => p.final_status === "Completed" || p.final_status === "Cancelled").length === 0 ? (
-              <EmptyState message="No completed KPI plans" />
+              <EmptyState message="No completed KPI settings" />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
@@ -829,10 +829,10 @@ export default function PerformancePage() {
           </div>
         )}
 
-        {/* KPI Plan Modal */}
-        <Modal open={kpiPlanModal} onClose={() => setKpiPlanModal(false)} title={editingKpiPlan ? "Edit KPI Plan" : "New KPI Plan"}>
+        {/* KPI Setting Modal */}
+        <Modal open={kpiPlanModal} onClose={() => setKpiPlanModal(false)} title={editingKpiPlan ? "Edit KPI Setting" : "New KPI Setting"}>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Employee" required>
+            <Field label="Employee ID" required>
               <select className={inputClass} value={kpiPlanForm.user_id} onChange={(e) => setKpiPlanForm({ ...kpiPlanForm, user_id: e.target.value })}>
                 <option value="">Select Employee</option>
                 {employees.map((emp) => <option key={emp.user_id} value={emp.user_id}>{emp.name}</option>)}
@@ -865,7 +865,7 @@ export default function PerformancePage() {
             <Field label="KPI Title" required className="sm:col-span-2">
               <input className={inputClass} value={kpiPlanForm.kpi_title} onChange={(e) => setKpiPlanForm({ ...kpiPlanForm, kpi_title: e.target.value })} />
             </Field>
-            <Field label="Description" className="sm:col-span-2">
+            <Field label="KPI Description" required className="sm:col-span-2">
               <textarea className={inputClass} rows={3} value={kpiPlanForm.kpi_description} onChange={(e) => setKpiPlanForm({ ...kpiPlanForm, kpi_description: e.target.value })} />
             </Field>
             <Field label="Target Value" required>
@@ -874,7 +874,7 @@ export default function PerformancePage() {
             <Field label="Weight (%)" required>
               <input type="number" step="any" className={inputClass} value={kpiPlanForm.weight} onChange={(e) => setKpiPlanForm({ ...kpiPlanForm, weight: e.target.value })} />
             </Field>
-            <Field label="Min Achievement (%)">
+            <Field label="Minimum Achievement (%)">
               <input type="number" step="any" className={inputClass} value={kpiPlanForm.minimum_achievement} onChange={(e) => setKpiPlanForm({ ...kpiPlanForm, minimum_achievement: e.target.value })} />
             </Field>
             <Field label="Data Source">
@@ -1276,7 +1276,7 @@ export default function PerformancePage() {
                 <option value="No">No</option><option value="Yes">Yes</option>
               </select>
             </Field>
-            <Field label="PIP Required">
+            <Field label="Performance Improvement Plan (PIP) Required">
               <select className={inputClass} value={reviewForm.pip_required} onChange={(e) => setReviewForm({ ...reviewForm, pip_required: e.target.value })}>
                 <option value="No">No</option><option value="Yes">Yes</option>
               </select>
@@ -1477,11 +1477,11 @@ export default function PerformancePage() {
     );
   };
 
-  // ─── Render PIP ─────────────────────────────────────────
+  // ─── Render Performance Improvement Plan (PIP) ─────────
 
   const renderPip = () => {
     const subTabs = [
-      { id: "list", label: "PIP Cases" },
+      { id: "list", label: "Performance Improvement Plan (PIP) Cases" },
       { id: "monitoring", label: "Progress Monitoring" },
     ];
 
@@ -1495,7 +1495,7 @@ export default function PerformancePage() {
           ))}
           <div className="ml-auto pb-2">
             <button onClick={openNewPip} className="flex h-10 items-center gap-2 rounded-lg bg-[#166432] px-4 text-sm font-bold text-white shadow hover:bg-[#1a7a3e]">
-              <FiPlus className="h-4 w-4" /> New PIP
+              <FiPlus className="h-4 w-4" /> New Performance Improvement Plan (PIP)
             </button>
           </div>
         </div>
@@ -1505,7 +1505,7 @@ export default function PerformancePage() {
             <table className="w-full text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase text-slate-500">
                 <tr>
-                  <th className="px-4 py-3">PIP No</th>
+                  <th className="px-4 py-3">Performance Improvement Plan (PIP) No.</th>
                   <th className="px-4 py-3">Employee</th>
                   <th className="px-4 py-3">Duration</th>
                   <th className="px-4 py-3">Issue</th>
@@ -1516,7 +1516,7 @@ export default function PerformancePage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {pipList.length === 0 ? (
-                  <tr><td colSpan={7}><EmptyState message="No PIP cases" /></td></tr>
+                  <tr><td colSpan={7}><EmptyState message="No Performance Improvement Plan (PIP) cases" /></td></tr>
                 ) : pipList.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3 font-bold text-slate-700">{p.pip_no}</td>
@@ -1553,7 +1553,7 @@ export default function PerformancePage() {
         {pipSubTab === "monitoring" && (
           <div className="grid gap-6">
             <div className="grid gap-4 sm:grid-cols-4">
-              <DashboardStatCard icon={FiAlertCircle} label="Active PIP" value={pipList.filter((p) => p.approval_status === "Active" || p.approval_status === "Draft").length} tone="bg-red-500 text-white" />
+              <DashboardStatCard icon={FiAlertCircle} label="Active Performance Improvement Plan (PIP)" value={pipList.filter((p) => p.approval_status === "Active" || p.approval_status === "Draft").length} tone="bg-red-500 text-white" />
               <DashboardStatCard icon={FiCheckCircle} label="Completed" value={pipList.filter((p) => p.final_result === "Passed").length} tone="bg-emerald-600 text-white" />
               <DashboardStatCard icon={FiClock} label="Extended" value={pipList.filter((p) => p.final_result === "Extended").length} tone="bg-amber-500 text-white" />
               <DashboardStatCard icon={FiX} label="Failed" value={pipList.filter((p) => p.final_result === "Failed").length} tone="bg-red-500 text-white" />
@@ -1561,7 +1561,7 @@ export default function PerformancePage() {
             <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
               <h3 className="mb-4 text-base font-extrabold text-slate-900">Weekly / Monthly Review Tracking</h3>
               {pipList.filter((p) => p.approval_status === "Active").length === 0 ? (
-                <EmptyState message="No active PIP cases to monitor" />
+                <EmptyState message="No active Performance Improvement Plan (PIP) cases to monitor" />
               ) : (
                 <div className="space-y-4">
                   {pipList.filter((p) => p.approval_status === "Active").map((p) => (
@@ -1593,8 +1593,8 @@ export default function PerformancePage() {
           </div>
         )}
 
-        {/* PIP Modal */}
-        <Modal open={pipModal} onClose={() => setPipModal(false)} title={editingPip ? "Edit PIP" : "New Performance Improvement Plan"}>
+        {/* Performance Improvement Plan (PIP) Modal */}
+        <Modal open={pipModal} onClose={() => setPipModal(false)} title={editingPip ? "Edit Performance Improvement Plan (PIP)" : "New Performance Improvement Plan (PIP)"}>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Employee" required>
               <select className={inputClass} value={pipForm.user_id} onChange={(e) => setPipForm({ ...pipForm, user_id: e.target.value })}>
@@ -1664,7 +1664,7 @@ export default function PerformancePage() {
     <div className="p-4 md:p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-extrabold text-slate-900">Performance Management</h1>
-        <p className="mt-1 text-sm text-slate-500">KPI planning, monitoring, reviews, career development & PIP</p>
+        <p className="mt-1 text-sm text-slate-500">KPI setting, monitoring, reviews, career development & Performance Improvement Plan (PIP)</p>
       </div>
 
       {/* Main Tabs */}
