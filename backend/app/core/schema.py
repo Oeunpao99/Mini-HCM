@@ -73,6 +73,28 @@ def ensure_runtime_schema(engine) -> None:
         _drop_enum_check(engine, "requests", "status")
 
     if "ot_requests" in tables:
+        _add_missing_columns(
+            engine,
+            "ot_requests",
+            {
+                "ot_type": "VARCHAR(30)",
+                "total_hours": "DECIMAL(5, 2)",
+                "project_task": "TEXT",
+                "backup_user_id": "INTEGER",
+                "backup_status": "VARCHAR(20) DEFAULT 'skipped'",
+                "backup_approved_at": "TIMESTAMP",
+                "line_manager_status": "VARCHAR(20) DEFAULT 'pending'",
+                "line_manager_approved_by": "INTEGER",
+                "line_manager_approved_at": "TIMESTAMP",
+                "department_head_status": "VARCHAR(20) DEFAULT 'pending'",
+                "department_head_approved_by": "INTEGER",
+                "department_head_approved_at": "TIMESTAMP",
+                "hr_status": "VARCHAR(20) DEFAULT 'pending'",
+                "hr_approved_by": "INTEGER",
+                "hr_approved_at": "TIMESTAMP",
+                "admin_remarks": "TEXT",
+            },
+        )
         _drop_enum_check(engine, "ot_requests", "status")
 
     if "employee_profiles" in tables:
