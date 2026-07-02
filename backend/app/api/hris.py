@@ -498,7 +498,11 @@ def employees(
     actor: User = Depends(require_roles(*HRIS_ROLES)),
 ):
     user_ids = _scope_ids(db, actor, include_self=True)
-    query = db.query(EmployeeProfile).join(User).filter(EmployeeProfile.user_id.in_(user_ids))
+    query = (
+        db.query(EmployeeProfile)
+        .join(User, EmployeeProfile.user_id == User.id)
+        .filter(EmployeeProfile.user_id.in_(user_ids))
+    )
     if department:
         query = query.filter(User.department == department)
     return [_profile_payload(row) for row in query.order_by(User.name.asc()).all()]
@@ -902,7 +906,7 @@ def generate_payroll_records(
     user_ids = _scope_ids(db, actor, include_self=True)
     profiles = (
         db.query(EmployeeProfile)
-        .join(User)
+        .join(User, EmployeeProfile.user_id == User.id)
         .filter(EmployeeProfile.user_id.in_(user_ids), func.lower(EmployeeProfile.employment_status) == "active")
         .order_by(User.name.asc())
         .all()
@@ -1029,7 +1033,7 @@ def bank_payment_export(
     user_ids = _scope_ids(db, actor, include_self=True)
     rows = (
         db.query(PayrollRecord)
-        .join(User)
+        .join(User, PayrollRecord.user_id == User.id)
         .join(EmployeeProfile, EmployeeProfile.user_id == User.id)
         .filter(
             PayrollRecord.user_id.in_(user_ids),
