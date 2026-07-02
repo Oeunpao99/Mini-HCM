@@ -16,6 +16,8 @@ depends_on = None
 
 def upgrade() -> None:
     op.execute("ALTER TABLE IF EXISTS training_records ADD COLUMN IF NOT EXISTS plan_id INTEGER")
+    op.execute("ALTER TABLE IF EXISTS training_records ADD COLUMN IF NOT EXISTS user_id INTEGER")
+    op.execute("ALTER TABLE IF EXISTS training_records ADD COLUMN IF NOT EXISTS title VARCHAR(200)")
     op.execute("ALTER TABLE IF EXISTS training_records ADD COLUMN IF NOT EXISTS training_type VARCHAR(50)")
     op.execute("ALTER TABLE IF EXISTS training_records ADD COLUMN IF NOT EXISTS category VARCHAR(50)")
     op.execute("ALTER TABLE IF EXISTS training_records ADD COLUMN IF NOT EXISTS provider VARCHAR(200)")
@@ -40,7 +42,9 @@ def upgrade() -> None:
     op.execute("ALTER TABLE IF EXISTS training_records ADD COLUMN IF NOT EXISTS certificate_file TEXT")
     op.execute("ALTER TABLE IF EXISTS training_records ADD COLUMN IF NOT EXISTS feedback_file TEXT")
     op.execute("ALTER TABLE IF EXISTS training_records ADD COLUMN IF NOT EXISTS verified_by INTEGER")
+    op.execute("ALTER TABLE IF EXISTS training_records ADD COLUMN IF NOT EXISTS status VARCHAR(30) DEFAULT 'Draft'")
     op.execute("ALTER TABLE IF EXISTS training_records ADD COLUMN IF NOT EXISTS remarks TEXT")
+    op.execute("ALTER TABLE IF EXISTS training_records ADD COLUMN IF NOT EXISTS created_at TIMESTAMP")
     op.execute("ALTER TABLE IF EXISTS training_records ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP")
 
     op.execute(

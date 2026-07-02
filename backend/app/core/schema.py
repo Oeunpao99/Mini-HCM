@@ -182,6 +182,7 @@ def ensure_runtime_schema(engine) -> None:
                 "plan_id": "INTEGER",
                 "training_type": "VARCHAR(50)",
                 "category": "VARCHAR(50)",
+                "provider": "VARCHAR(200)",
                 "end_date": "DATE",
                 "training_date": "DATE",
                 "duration": "DECIMAL(6, 1)",
@@ -197,7 +198,9 @@ def ensure_runtime_schema(engine) -> None:
                 "certificate_file": "TEXT",
                 "feedback_file": "TEXT",
                 "verified_by": "INTEGER",
+                "status": "VARCHAR(30) DEFAULT 'Draft'",
                 "remarks": "TEXT",
+                "created_at": "TIMESTAMP",
                 "updated_at": "TIMESTAMP",
             },
         )
