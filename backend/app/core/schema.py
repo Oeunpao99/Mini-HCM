@@ -143,6 +143,7 @@ def ensure_runtime_schema(engine) -> None:
                 "department_head_id": "INTEGER",
             },
         )
+        _normalize_employee_profile_legacy_status(engine)
 
     if "employee_movement_requests" in tables:
         _add_missing_columns(
@@ -256,6 +257,25 @@ def _add_missing_columns(engine, table_name: str, columns: dict[str, str]) -> No
                 )
             else:
                 conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {name} {definition}{default}"))
+
+
+def _normalize_employee_profile_legacy_status(engine) -> None:
+    columns = {column["name"] for column in inspect(engine).get_columns("employee_profiles")}
+    if "status" not in columns:
+        return
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                UPDATE employee_profiles
+                SET status = COALESCE(status, employment_status, 'Active')
+                WHERE status IS NULL
+                """
+            )
+        )
+        if engine.dialect.name == "postgresql":
+            conn.execute(text("ALTER TABLE employee_profiles ALTER COLUMN status SET DEFAULT 'Active'"))
 
 
 def _boolean_type(dialect: str, default: str | None) -> str:
