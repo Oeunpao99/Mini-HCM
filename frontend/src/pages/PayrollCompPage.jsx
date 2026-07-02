@@ -355,7 +355,7 @@ const CompensationView = ({ compensations, onRefresh }) => {
       <Table columns={columns} data={compensations} onEdit={openEdit} onDelete={async (id) => { await api.delete(`/api/payroll-comp/compensations/${id}`); onRefresh(); }} />
       <Modal open={modal} onClose={() => setModal(false)} title={editingId ? "Edit Compensation" : "New Compensation"}>
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Employee" type="select" value={form.user_id} onChange={(v) => setForm({ ...form, user_id: Number(v) })} options={employeeOptions.map((e) => ({ value: e.id, label: `${e.name} (${e.emp_code})` }))} />
+          <Field label="Employee" type="select" value={form.user_id} onChange={(v) => setForm({ ...form, user_id: Number(v) })} options={employeeOptionsFrom(employeeOptions)} />
           <Field label="Salary Grade" type="select" value={form.salary_grade} onChange={(v) => setForm({ ...form, salary_grade: v })} options={SALARY_GRADES} />
           <Field label="Salary Band" type="select" value={form.salary_band} onChange={(v) => setForm({ ...form, salary_band: v })} options={SALARY_BANDS} />
           <Field label="Basic Salary" type="number" value={form.basic_salary} onChange={(v) => setForm({ ...form, basic_salary: Number(v) })} />
@@ -416,7 +416,7 @@ const BenefitsView = ({ benefits, onRefresh }) => {
       <Table columns={columns} data={benefits} onEdit={openEdit} onDelete={async (id) => { await api.delete(`/api/payroll-comp/benefits/${id}`); onRefresh(); }} />
       <Modal open={modal} onClose={() => setModal(false)} title={editingId ? "Edit Benefit" : "New Benefit"}>
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Employee" type="select" value={form.user_id} onChange={(v) => setForm({ ...form, user_id: Number(v) })} options={employeeOptions.map((e) => ({ value: e.id, label: `${e.name} (${e.emp_code})` }))} />
+          <Field label="Employee" type="select" value={form.user_id} onChange={(v) => setForm({ ...form, user_id: Number(v) })} options={employeeOptionsFrom(employeeOptions)} />
           <Field label="Benefit Type" type="select" value={form.benefit_type} onChange={(v) => setForm({ ...form, benefit_type: v })} options={BENEFIT_TYPES} />
           <Field label="Benefit Name" value={form.benefit_name} onChange={(v) => setForm({ ...form, benefit_name: v })} />
           <Field label="Benefit Value" type="number" value={form.benefit_value} onChange={(v) => setForm({ ...form, benefit_value: Number(v) })} />
@@ -476,7 +476,7 @@ const SeniorityView = ({ seniorities, onRefresh }) => {
       <Table columns={columns} data={seniorities} onEdit={openEdit} onDelete={async (id) => { await api.delete(`/api/payroll-comp/seniority-severances/${id}`); onRefresh(); }} />
       <Modal open={modal} onClose={() => setModal(false)} title={editingId ? "Edit Record" : "New Seniority/Severance"}>
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Employee" type="select" value={form.user_id} onChange={(v) => setForm({ ...form, user_id: Number(v) })} options={employeeOptions.map((e) => ({ value: e.id, label: `${e.name} (${e.emp_code})` }))} />
+          <Field label="Employee" type="select" value={form.user_id} onChange={(v) => setForm({ ...form, user_id: Number(v) })} options={employeeOptionsFrom(employeeOptions)} />
           <Field label="Payment Type" type="select" value={form.payment_type} onChange={(v) => setForm({ ...form, payment_type: v })} options={["Mid-Year Seniority", "Year-End Seniority", "Outstanding Seniority", "Severance"]} />
           <Field label="Join Date" type="date" value={form.join_date} onChange={(v) => setForm({ ...form, join_date: v })} />
           <Field label="Eligible Salary" type="number" value={form.eligible_salary} onChange={(v) => setForm({ ...form, eligible_salary: Number(v) })} />
@@ -535,7 +535,7 @@ const MovementView = ({ movements, onRefresh }) => {
       <Table columns={columns} data={movements} onEdit={openEdit} onDelete={async (id) => { await api.delete(`/api/payroll-comp/movements/${id}`); onRefresh(); }} />
       <Modal open={modal} onClose={() => setModal(false)} title={editingId ? "Edit Movement" : "New Staff Movement"}>
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Employee" type="select" value={form.user_id} onChange={(v) => setForm({ ...form, user_id: Number(v) })} options={employeeOptions.map((e) => ({ value: e.id, label: `${e.name} (${e.emp_code})` }))} />
+          <Field label="Employee" type="select" value={form.user_id} onChange={(v) => setForm({ ...form, user_id: Number(v) })} options={employeeOptionsFrom(employeeOptions)} />
           <Field label="Movement Type" type="select" value={form.movement_type} onChange={(v) => setForm({ ...form, movement_type: v })} options={MOVEMENT_TYPES} />
           <Field label="Effective Date" type="date" value={form.effective_date} onChange={(v) => setForm({ ...form, effective_date: v })} />
           <Field label="New Department" value={form.new_department} onChange={(v) => setForm({ ...form, new_department: v })} />
