@@ -1185,7 +1185,7 @@ def _training_record_payload(row: TrainingRecord) -> dict:
         "training_type": row.training_type,
         "category": row.category,
         "provider": row.provider,
-        "training_date": row.training_date.isoformat(),
+        "training_date": row.training_date.isoformat() if row.training_date else None,
         "end_date": row.end_date.isoformat() if row.end_date else None,
         "duration": float(row.duration) if row.duration else None,
         "training_method": row.training_method,
