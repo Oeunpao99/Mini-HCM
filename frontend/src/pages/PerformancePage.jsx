@@ -19,6 +19,7 @@ const MEASUREMENT_METHODS = ["Quantity", "Percentage", "Score", "Milestone", "Fi
 const KPI_PLAN_STATUSES = ["Draft", "Pending Approval", "Approved", "Active", "Completed", "Cancelled"];
 const APPROVAL_STATUSES = ["Pending", "Approved", "Rejected"];
 const MONITORING_STATUSES = ["Not Started", "On Track", "At Risk", "Behind Target", "Completed"];
+const MONITORING_STATES = ["Draft", "Submitted", "Reviewed"];
 const REVIEW_PERIODS = ["Probation", "Semester 1", "Semester 2", "Annual"];
 const PERFORMANCE_RATINGS = ["Outstanding", "Exceeds Expectations", "Meets Expectations", "Needs Improvement", "Unsatisfactory"];
 const POTENTIAL_RATINGS = ["Low", "Medium", "High"];
@@ -104,6 +105,7 @@ const StatusBadge = ({ status }) => {
     "Active": "bg-blue-50 text-blue-700",
     "Completed": "bg-emerald-50 text-emerald-700",
     "Cancelled": "bg-red-50 text-red-700",
+    "Rejected": "bg-red-50 text-red-700",
     "On Track": "bg-emerald-50 text-emerald-700",
     "At Risk": "bg-amber-50 text-amber-700",
     "Behind Target": "bg-red-50 text-red-700",
@@ -123,7 +125,7 @@ const StatusBadge = ({ status }) => {
 
 const defaultKpiPlanForm = () => ({
   user_id: "", kpi_period: "Annual", start_date: "", end_date: "",
-  kpi_category: "Individual", kpi_title: "", kpi_description: "",
+  kpi_category: "Individual", kpi_code: "", kpi_title: "", kpi_description: "",
   measurement_method: "Percentage", target_value: "", weight: "",
   minimum_achievement: "", data_source: "", responsible_person: "",
   line_manager_approval: "Pending", hr_review: "Pending", final_status: "Draft", remarks: "",
@@ -285,7 +287,7 @@ export default function PerformancePage() {
       user_id: plan.user_id, kpi_period: plan.kpi_period,
       start_date: plan.start_date ? plan.start_date.slice(0, 10) : "",
       end_date: plan.end_date ? plan.end_date.slice(0, 10) : "",
-      kpi_category: plan.kpi_category, kpi_title: plan.kpi_title,
+      kpi_category: plan.kpi_category, kpi_code: plan.kpi_code || "", kpi_title: plan.kpi_title,
       kpi_description: plan.kpi_description || "",
       measurement_method: plan.measurement_method, target_value: plan.target_value,
       weight: plan.weight, minimum_achievement: plan.minimum_achievement || "",
@@ -297,9 +299,27 @@ export default function PerformancePage() {
     setKpiPlanModal(true);
   };
 
+  const getKpiWeightTotal = (targetPlan, draftWeight) => {
+    const targetUserId = String(targetPlan.user_id);
+    return kpiPlans
+      .filter((plan) => (
+        String(plan.user_id) === targetUserId
+        && plan.kpi_period === targetPlan.kpi_period
+        && (targetPlan.id ? plan.id !== targetPlan.id : true)
+      ))
+      .reduce((total, plan) => total + Number(plan.weight || 0), Number(draftWeight ?? targetPlan.weight ?? 0));
+  };
+
   const saveKpiPlan = async () => {
     try {
       const payload = { ...kpiPlanForm };
+      if (["Pending Approval", "Approved", "Active"].includes(payload.final_status)) {
+        const totalWeight = getKpiWeightTotal(editingKpiPlan || payload, payload.weight);
+        if (Math.abs(totalWeight - 100) > 0.01) {
+          alert(`Total KPI weight for this employee and period must equal 100% before approval. Current total: ${totalWeight}%`);
+          return;
+        }
+      }
       if (editingKpiPlan) {
         await api.put(`/api/performance/kpi-plans/${editingKpiPlan.id}`, payload);
       } else {
@@ -314,10 +334,54 @@ export default function PerformancePage() {
 
   const updateKpiPlanStatus = async (id, status) => {
     try {
+      const plan = kpiPlans.find((item) => item.id === id);
+      if (plan && ["Pending Approval", "Approved", "Active"].includes(status)) {
+        const totalWeight = getKpiWeightTotal(plan, plan.weight);
+        if (Math.abs(totalWeight - 100) > 0.01) {
+          alert(`Total KPI weight for this employee and period must equal 100% before approval. Current total: ${totalWeight}%`);
+          return;
+        }
+      }
       await api.put(`/api/performance/kpi-plans/${id}/status`, { final_status: status });
       loadKpiPlans();
     } catch (err) {
       alert(err?.response?.data?.detail || "Error updating status");
+    }
+  };
+
+  const updateKpiPlanApproval = async (plan, approvalPatch) => {
+    try {
+      const nextPlan = { ...plan, ...approvalPatch };
+      if (["Pending Approval", "Approved", "Active"].includes(nextPlan.final_status)) {
+        const totalWeight = getKpiWeightTotal(plan, plan.weight);
+        if (Math.abs(totalWeight - 100) > 0.01) {
+          alert(`Total KPI weight for this employee and period must equal 100% before approval. Current total: ${totalWeight}%`);
+          return;
+        }
+      }
+      await api.put(`/api/performance/kpi-plans/${plan.id}`, {
+        user_id: nextPlan.user_id,
+        kpi_period: nextPlan.kpi_period,
+        start_date: nextPlan.start_date?.slice(0, 10),
+        end_date: nextPlan.end_date?.slice(0, 10),
+        kpi_category: nextPlan.kpi_category,
+        kpi_code: nextPlan.kpi_code || "",
+        kpi_title: nextPlan.kpi_title,
+        kpi_description: nextPlan.kpi_description || "",
+        measurement_method: nextPlan.measurement_method,
+        target_value: nextPlan.target_value,
+        weight: nextPlan.weight,
+        minimum_achievement: nextPlan.minimum_achievement || null,
+        data_source: nextPlan.data_source || "",
+        responsible_person: nextPlan.responsible_person || null,
+        line_manager_approval: nextPlan.line_manager_approval || "Pending",
+        hr_review: nextPlan.hr_review || "Pending",
+        final_status: nextPlan.final_status || "Draft",
+        remarks: nextPlan.remarks || "",
+      });
+      loadKpiPlans();
+    } catch (err) {
+      alert(err?.response?.data?.detail || "Error updating approval");
     }
   };
 
@@ -583,11 +647,16 @@ export default function PerformancePage() {
   // ─── Render KPI Planning ───────────────────────────────
 
   const renderKpiPlanning = () => {
+    const pendingApprovalPlans = kpiPlans.filter((plan) => plan.final_status === "Pending Approval");
+    const approvedPlans = kpiPlans.filter((plan) => plan.final_status === "Approved" || plan.final_status === "Active");
+    const rejectedPlans = kpiPlans.filter((plan) => plan.line_manager_approval === "Rejected" || plan.hr_review === "Rejected" || plan.final_status === "Cancelled");
     const kpiSubTabs = [
       { id: "plans", label: "KPI Plans" },
+      { id: "approval", label: "KPI Approval" },
       { id: "templates", label: "KPI Templates" },
       { id: "history", label: "KPI History" },
     ];
+    const selectedKpiEmployee = employees.find((emp) => String(emp.user_id) === String(kpiPlanForm.user_id));
 
     return (
       <div>
@@ -610,30 +679,45 @@ export default function PerformancePage() {
               <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase text-slate-500">
                 <tr>
                   <th className="px-4 py-3">Plan ID</th>
+                  <th className="px-4 py-3">KPI Code</th>
                   <th className="px-4 py-3">Employee</th>
+                  <th className="px-4 py-3">Department</th>
+                  <th className="px-4 py-3">Position</th>
                   <th className="px-4 py-3">Period</th>
                   <th className="px-4 py-3">KPI Title</th>
+                  <th className="px-4 py-3">Method</th>
                   <th className="px-4 py-3">Target</th>
                   <th className="px-4 py-3">Weight</th>
+                  <th className="px-4 py-3">Data Source</th>
+                  <th className="px-4 py-3">LM Approval</th>
+                  <th className="px-4 py-3">HR Review</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {kpiPlans.length === 0 ? (
-                  <tr><td colSpan={8}><EmptyState message="No KPI plans yet" /></td></tr>
+                  <tr><td colSpan={15}><EmptyState message="No KPI plans yet" /></td></tr>
                 ) : kpiPlans.map((plan) => (
                   <tr key={plan.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3 font-bold text-slate-700">{plan.kpi_plan_id}</td>
+                    <td className="px-4 py-3">{plan.kpi_code || "-"}</td>
                     <td className="px-4 py-3">{plan.employee_name}</td>
+                    <td className="px-4 py-3">{plan.department || "-"}</td>
+                    <td className="px-4 py-3">{plan.position || "-"}</td>
                     <td className="px-4 py-3">{plan.kpi_period}</td>
                     <td className="px-4 py-3 max-w-[200px] truncate">{plan.kpi_title}</td>
+                    <td className="px-4 py-3">{plan.measurement_method}</td>
                     <td className="px-4 py-3">{plan.target_value}</td>
                     <td className="px-4 py-3">{plan.weight}%</td>
+                    <td className="px-4 py-3 max-w-[160px] truncate">{plan.data_source || "-"}</td>
+                    <td className="px-4 py-3"><StatusBadge status={plan.line_manager_approval} /></td>
+                    <td className="px-4 py-3"><StatusBadge status={plan.hr_review || "Pending"} /></td>
                     <td className="px-4 py-3"><StatusBadge status={plan.final_status} /></td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <button onClick={() => openEditKpiPlan(plan)} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600" title="Edit"><FiEdit2 className="h-4 w-4" /></button>
+                        <button onClick={() => updateKpiPlanStatus(plan.id, "Pending Approval")} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-amber-600" title="Submit for Approval"><FiClock className="h-4 w-4" /></button>
                         <button onClick={() => updateKpiPlanStatus(plan.id, "Active")} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-emerald-600" title="Activate"><FiCheckCircle className="h-4 w-4" /></button>
                         <button onClick={() => deleteKpiPlan(plan.id)} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-red-600" title="Delete"><FiTrash2 className="h-4 w-4" /></button>
                       </div>
@@ -642,6 +726,47 @@ export default function PerformancePage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {kpiSubTab === "approval" && (
+          <div className="grid gap-4 lg:grid-cols-3">
+            {[
+              { title: "Pending Approval", rows: pendingApprovalPlans, empty: "No pending KPI approvals" },
+              { title: "Approved KPI", rows: approvedPlans, empty: "No approved KPIs" },
+              { title: "Rejected KPI", rows: rejectedPlans, empty: "No rejected KPIs" },
+            ].map((group) => (
+              <div key={group.title} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <h3 className="mb-3 text-sm font-extrabold uppercase text-slate-500">{group.title}</h3>
+                {group.rows.length === 0 ? (
+                  <EmptyState message={group.empty} />
+                ) : (
+                  <div className="space-y-3">
+                    {group.rows.map((plan) => (
+                      <div key={plan.id} className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-extrabold text-slate-900">{plan.kpi_title}</p>
+                            <p className="text-xs text-slate-500">{plan.employee_name} - {plan.kpi_period} - {plan.weight}%</p>
+                          </div>
+                          <StatusBadge status={plan.final_status} />
+                        </div>
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                          <div>Line Manager: <StatusBadge status={plan.line_manager_approval} /></div>
+                          <div>HR: <StatusBadge status={plan.hr_review || "Pending"} /></div>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button onClick={() => updateKpiPlanApproval(plan, { line_manager_approval: "Approved", hr_review: "Approved", final_status: "Approved" })} className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700">Approve</button>
+                          <button onClick={() => updateKpiPlanApproval(plan, { final_status: "Active" })} className="rounded bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700">Activate</button>
+                          <button onClick={() => updateKpiPlanApproval(plan, { line_manager_approval: "Rejected", final_status: "Cancelled" })} className="rounded bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700">Reject</button>
+                          <button onClick={() => openEditKpiPlan(plan)} className="rounded bg-white px-3 py-1.5 text-xs font-bold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100">Edit</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
 
@@ -729,6 +854,9 @@ export default function PerformancePage() {
                 {KPI_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </Field>
+            <Field label="KPI Code">
+              <input className={inputClass} placeholder="Optional reference code" value={kpiPlanForm.kpi_code} onChange={(e) => setKpiPlanForm({ ...kpiPlanForm, kpi_code: e.target.value })} />
+            </Field>
             <Field label="Measurement Method" required>
               <select className={inputClass} value={kpiPlanForm.measurement_method} onChange={(e) => setKpiPlanForm({ ...kpiPlanForm, measurement_method: e.target.value })}>
                 {MEASUREMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
@@ -758,6 +886,35 @@ export default function PerformancePage() {
                 {employees.map((emp) => <option key={emp.user_id} value={emp.user_id}>{emp.name}</option>)}
               </select>
             </Field>
+            <div className="sm:col-span-2 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600 sm:grid-cols-3">
+              <div>
+                <p className="text-xs font-bold uppercase text-slate-400">Employee Name</p>
+                <p className="font-bold text-slate-800">{selectedKpiEmployee?.name || "-"}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase text-slate-400">Department</p>
+                <p className="font-bold text-slate-800">{selectedKpiEmployee?.department || "-"}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase text-slate-400">Position</p>
+                <p className="font-bold text-slate-800">{selectedKpiEmployee?.position || "-"}</p>
+              </div>
+            </div>
+            <Field label="Line Manager Approval" required>
+              <select className={inputClass} value={kpiPlanForm.line_manager_approval} onChange={(e) => setKpiPlanForm({ ...kpiPlanForm, line_manager_approval: e.target.value })}>
+                {APPROVAL_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </Field>
+            <Field label="HR Review">
+              <select className={inputClass} value={kpiPlanForm.hr_review} onChange={(e) => setKpiPlanForm({ ...kpiPlanForm, hr_review: e.target.value })}>
+                {APPROVAL_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </Field>
+            <Field label="Final Status" required>
+              <select className={inputClass} value={kpiPlanForm.final_status} onChange={(e) => setKpiPlanForm({ ...kpiPlanForm, final_status: e.target.value })}>
+                {KPI_PLAN_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </Field>
             <Field label="Remarks" className="sm:col-span-2">
               <textarea className={inputClass} rows={2} value={kpiPlanForm.remarks} onChange={(e) => setKpiPlanForm({ ...kpiPlanForm, remarks: e.target.value })} />
             </Field>
@@ -782,6 +939,7 @@ export default function PerformancePage() {
       { id: "list", label: "Progress Tracking" },
       { id: "dashboard", label: "Monitoring Dashboard" },
     ];
+    const selectedMonitoringPlan = kpiPlans.find((plan) => String(plan.id) === String(monitoringForm.kpi_plan_id));
 
     const onTrack = monitoring.filter((m) => m.status === "On Track").length;
     const atRisk = monitoring.filter((m) => m.status === "At Risk").length;
@@ -814,13 +972,14 @@ export default function PerformancePage() {
                   <th className="px-4 py-3">%</th>
                   <th className="px-4 py-3">Score</th>
                   <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Review</th>
                   <th className="px-4 py-3">Date</th>
                   <th className="px-4 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {monitoring.length === 0 ? (
-                  <tr><td colSpan={8}><EmptyState message="No monitoring records" /></td></tr>
+                  <tr><td colSpan={9}><EmptyState message="No monitoring records" /></td></tr>
                 ) : monitoring.map((m) => (
                   <tr key={m.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3 max-w-[150px] truncate font-bold text-slate-700">{m.kpi_title}</td>
@@ -829,12 +988,16 @@ export default function PerformancePage() {
                     <td className="px-4 py-3">{m.achievement_pct != null ? `${m.achievement_pct}%` : "-"}</td>
                     <td className="px-4 py-3">{m.kpi_score != null ? m.kpi_score.toFixed(2) : "-"}</td>
                     <td className="px-4 py-3"><StatusBadge status={m.status} /></td>
+                    <td className="px-4 py-3"><StatusBadge status={m.monitoring_status} /></td>
                     <td className="px-4 py-3">{m.monitoring_date?.slice(0, 10)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <button onClick={() => {
                           const comment = prompt("Manager comment:");
-                          if (comment !== null) reviewMonitoring(m.id, { manager_comment: comment, monitoring_status: "Reviewed" });
+                          if (comment !== null) {
+                            const actionRequired = prompt("Action required:", m.action_required || "");
+                            reviewMonitoring(m.id, { manager_comment: comment, action_required: actionRequired || "", monitoring_status: "Reviewed" });
+                          }
                         }} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600" title="Review">
                           <FiCheckCircle className="h-4 w-4" />
                         </button>
@@ -870,17 +1033,50 @@ export default function PerformancePage() {
                 {kpiPlans.map((p) => <option key={p.id} value={p.id}>{p.kpi_plan_id} - {p.kpi_title}</option>)}
               </select>
             </Field>
+            {selectedMonitoringPlan && (
+              <div className="sm:col-span-2 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600 sm:grid-cols-4">
+                <div>
+                  <p className="text-xs font-bold uppercase text-slate-400">Employee</p>
+                  <p className="font-bold text-slate-800">{selectedMonitoringPlan.employee_name || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase text-slate-400">Department</p>
+                  <p className="font-bold text-slate-800">{selectedMonitoringPlan.department || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase text-slate-400">Period</p>
+                  <p className="font-bold text-slate-800">{selectedMonitoringPlan.kpi_period || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase text-slate-400">Target / Weight</p>
+                  <p className="font-bold text-slate-800">{selectedMonitoringPlan.target_value} / {selectedMonitoringPlan.weight}%</p>
+                </div>
+              </div>
+            )}
             <Field label="Monitoring Date" required>
               <input type="date" className={inputClass} value={monitoringForm.monitoring_date} onChange={(e) => setMonitoringForm({ ...monitoringForm, monitoring_date: e.target.value })} />
             </Field>
             <Field label="Current Achievement" required>
               <input type="number" step="any" className={inputClass} value={monitoringForm.current_achievement} onChange={(e) => setMonitoringForm({ ...monitoringForm, current_achievement: e.target.value })} />
             </Field>
+            <Field label="KPI Status">
+              <select className={inputClass} value={monitoringForm.status} onChange={(e) => setMonitoringForm({ ...monitoringForm, status: e.target.value })}>
+                {MONITORING_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </Field>
+            <Field label="Monitoring Status">
+              <select className={inputClass} value={monitoringForm.monitoring_status} onChange={(e) => setMonitoringForm({ ...monitoringForm, monitoring_status: e.target.value })}>
+                {MONITORING_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </Field>
             <Field label="Employee Comment" className="sm:col-span-2">
               <textarea className={inputClass} rows={2} value={monitoringForm.employee_comment} onChange={(e) => setMonitoringForm({ ...monitoringForm, employee_comment: e.target.value })} />
             </Field>
             <Field label="Supporting Evidence" className="sm:col-span-2">
               <input className={inputClass} placeholder="URL or file path" value={monitoringForm.supporting_evidence} onChange={(e) => setMonitoringForm({ ...monitoringForm, supporting_evidence: e.target.value })} />
+            </Field>
+            <Field label="Remarks" className="sm:col-span-2">
+              <textarea className={inputClass} rows={2} value={monitoringForm.remarks} onChange={(e) => setMonitoringForm({ ...monitoringForm, remarks: e.target.value })} />
             </Field>
           </div>
           <div className="mt-6 flex justify-end gap-3">
