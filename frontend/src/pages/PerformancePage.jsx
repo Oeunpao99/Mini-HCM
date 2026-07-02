@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   FiActivity, FiAlertCircle, FiBarChart2, FiBookOpen, FiCheckCircle,
   FiClock, FiEdit2, FiFileText, FiGrid, FiPlus, FiTarget, FiTrash2,
@@ -162,7 +163,10 @@ const defaultPipForm = () => ({
 
 export default function PerformancePage() {
   const { userId, role } = useAuth();
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const location = useLocation();
+  const navigate = useNavigate();
+  const initialTab = new URLSearchParams(location.search).get("tab") || "dashboard";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState([]);
 
@@ -207,6 +211,16 @@ export default function PerformancePage() {
 
   const mgmtRoles = ["line_manager", "department_head", "management_hr", "payroll_officer"];
   const isManagement = mgmtRoles.includes(role);
+
+  useEffect(() => {
+    const tabFromUrl = new URLSearchParams(location.search).get("tab") || "dashboard";
+    setActiveTab(tabFromUrl);
+  }, [location.search]);
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    navigate(tabId === "dashboard" ? "/performance" : `/performance?tab=${tabId}`);
+  };
 
   const loadEmployees = async () => {
     try {
@@ -1672,7 +1686,7 @@ export default function PerformancePage() {
         {mainTabs.map((tab) => {
           const Icon = tab.icon;
           return (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            <button key={tab.id} onClick={() => handleTabChange(tab.id)}
               className={`flex h-12 items-center gap-2 border-b-2 px-4 text-sm font-extrabold whitespace-nowrap ${
                 activeTab === tab.id ? "border-[#166432] text-[#166432]" : "border-transparent text-slate-500 hover:text-slate-900"
               }`}>
