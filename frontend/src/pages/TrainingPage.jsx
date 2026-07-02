@@ -28,7 +28,7 @@ import {
 } from "recharts";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
-import { Field, inputClass } from "./hris/HrisCommon";
+import { Field, inputClass, money } from "./hris/HrisCommon";
 
 const TRAINING_CATEGORIES = ["Orientation", "Technical", "Soft Skill", "Compliance", "Leadership"];
 const TRAINING_TYPES = ["Internal", "External", "Online", "Classroom", "Workshop", "Seminar"];
