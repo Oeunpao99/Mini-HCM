@@ -1,7 +1,7 @@
 from datetime import date, datetime, time
 from decimal import Decimal
 
-from sqlalchemy import func
+from sqlalchemy import inspect, text
 
 from app.core.schema import ensure_runtime_schema
 from app.core.seed import seed_default_data
@@ -63,9 +63,24 @@ def add_if_missing(db, model, filters: dict, values: dict):
 
 
 def table_has_column(db, table_name: str, column_name: str) -> bool:
-    bind = db.get_bind()
-    rows = bind.dialect.get_columns(bind.connect(), table_name)
-    return any(row["name"] == column_name for row in rows)
+    return column_name in {column["name"] for column in inspect(db.get_bind()).get_columns(table_name)}
+
+
+def relax_legacy_training_record_start_date(db) -> None:
+    if not table_has_column(db, "training_records", "start_date"):
+        return
+    dialect = db.get_bind().dialect.name
+    db.execute(
+        text(
+            """
+            UPDATE training_records
+            SET training_date = COALESCE(training_date, start_date),
+                start_date = COALESCE(start_date, training_date, CURRENT_DATE)
+            """
+        )
+    )
+    if dialect == "postgresql":
+        db.execute(text("ALTER TABLE training_records ALTER COLUMN start_date DROP NOT NULL"))
 
 
 def profile_for(db, user: User) -> EmployeeProfile:
@@ -90,6 +105,7 @@ def seed_all_models() -> dict[str, int]:
 
     try:
         seed_default_data(db)
+        relax_legacy_training_record_start_date(db)
 
         hr = first_user(db, "EMP001")
         dev_head = first_user(db, "EMP002")
@@ -466,10 +482,6 @@ def seed_all_models() -> dict[str, int]:
         )
         mark("training_plans", made)
 
-        training_record_extra = {}
-        if table_has_column(db, "training_records", "start_date"):
-            training_record_extra["start_date"] = date(2026, 7, 15)
-
         for user in [dev_manager, dev_staff, hr_staff]:
             rec, made = add_if_missing(
                 db,
@@ -495,7 +507,6 @@ def seed_all_models() -> dict[str, int]:
                     "verified_by": hr.id,
                     "status": "Draft",
                     "remarks": "Seeded training record.",
-                    **training_record_extra,
                 },
             )
             mark("training_records", made)
