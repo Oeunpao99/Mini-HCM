@@ -135,6 +135,7 @@ const defaultKpiPlanForm = () => ({
 const defaultMonitoringForm = () => ({
   kpi_plan_id: "", monitoring_date: new Date().toISOString().slice(0, 10),
   current_achievement: "", supporting_evidence: "", employee_comment: "",
+  manager_comment: "", action_required: "",
   status: "Not Started", monitoring_status: "Draft", remarks: "",
 });
 
@@ -671,6 +672,28 @@ export default function PerformancePage() {
       { id: "history", label: "KPI History" },
     ];
     const selectedKpiEmployee = employees.find((emp) => String(emp.user_id) === String(kpiPlanForm.user_id));
+    const countBy = (rows, key, fallback = "Unassigned") => {
+      const counts = rows.reduce((acc, row) => {
+        const label = row[key] || fallback;
+        acc[label] = (acc[label] || 0) + 1;
+        return acc;
+      }, {});
+      return Object.entries(counts).map(([name, count]) => ({ name, count }));
+    };
+    const totalKpiPlans = kpiPlans.length;
+    const activeKpiPlans = kpiPlans.filter((plan) => plan.final_status === "Active").length;
+    const completedKpiPlans = kpiPlans.filter((plan) => plan.final_status === "Completed").length;
+    const pendingKpiPlans = kpiPlans.filter((plan) => plan.final_status === "Pending Approval").length;
+    const approvedKpiPlans = kpiPlans.filter((plan) => ["Approved", "Active", "Completed"].includes(plan.final_status)).length;
+    const totalKpiWeight = kpiPlans.reduce((sum, plan) => sum + Number(plan.weight || 0), 0);
+    const averageKpiWeight = totalKpiPlans ? Math.round(totalKpiWeight / totalKpiPlans) : 0;
+    const employeeCoverage = new Set(kpiPlans.map((plan) => plan.user_id).filter(Boolean)).size;
+    const approvalRate = totalKpiPlans ? Math.round((approvedKpiPlans / totalKpiPlans) * 100) : 0;
+    const statusData = countBy(kpiPlans, "final_status", "No Status");
+    const periodData = countBy(kpiPlans, "kpi_period", "No Period");
+    const categoryData = countBy(kpiPlans, "kpi_category", "Other");
+    const methodData = countBy(kpiPlans, "measurement_method", "Other");
+    const kpiChartColors = ["#166432", "#2563eb", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2"];
 
     return (
       <div>
@@ -688,58 +711,129 @@ export default function PerformancePage() {
         </div>
 
         {kpiSubTab === "plans" && (
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase text-slate-500">
-                <tr>
-                  <th className="px-4 py-3">KPI Plan ID</th>
-                  <th className="px-4 py-3">KPI Code</th>
-                  <th className="px-4 py-3">Employee</th>
-                  <th className="px-4 py-3">Department</th>
-                  <th className="px-4 py-3">Position</th>
-                  <th className="px-4 py-3">Period</th>
-                  <th className="px-4 py-3">KPI Title</th>
-                  <th className="px-4 py-3">Method</th>
-                  <th className="px-4 py-3">Target</th>
-                  <th className="px-4 py-3">Weight</th>
-                  <th className="px-4 py-3">Data Source</th>
-                  <th className="px-4 py-3">LM Approval</th>
-                  <th className="px-4 py-3">HR Review</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {kpiPlans.length === 0 ? (
-                  <tr><td colSpan={15}><EmptyState message="No KPI settings yet" /></td></tr>
-                ) : kpiPlans.map((plan) => (
-                  <tr key={plan.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-bold text-slate-700">{plan.kpi_plan_id}</td>
-                    <td className="px-4 py-3">{plan.kpi_code || "-"}</td>
-                    <td className="px-4 py-3">{plan.employee_name}</td>
-                    <td className="px-4 py-3">{plan.department || "-"}</td>
-                    <td className="px-4 py-3">{plan.position || "-"}</td>
-                    <td className="px-4 py-3">{plan.kpi_period}</td>
-                    <td className="px-4 py-3 max-w-[200px] truncate">{plan.kpi_title}</td>
-                    <td className="px-4 py-3">{plan.measurement_method}</td>
-                    <td className="px-4 py-3">{plan.target_value}</td>
-                    <td className="px-4 py-3">{plan.weight}%</td>
-                    <td className="px-4 py-3 max-w-[160px] truncate">{plan.data_source || "-"}</td>
-                    <td className="px-4 py-3"><StatusBadge status={plan.line_manager_approval} /></td>
-                    <td className="px-4 py-3"><StatusBadge status={plan.hr_review || "Pending"} /></td>
-                    <td className="px-4 py-3"><StatusBadge status={plan.final_status} /></td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => openEditKpiPlan(plan)} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600" title="Edit"><FiEdit2 className="h-4 w-4" /></button>
-                        <button onClick={() => updateKpiPlanStatus(plan.id, "Pending Approval")} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-amber-600" title="Submit for Approval"><FiClock className="h-4 w-4" /></button>
-                        <button onClick={() => updateKpiPlanStatus(plan.id, "Active")} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-emerald-600" title="Activate"><FiCheckCircle className="h-4 w-4" /></button>
-                        <button onClick={() => deleteKpiPlan(plan.id)} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-red-600" title="Delete"><FiTrash2 className="h-4 w-4" /></button>
-                      </div>
-                    </td>
+          <div className="grid gap-4">
+            <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+              <DashboardStatCard icon={FiTarget} label="Total KPI" value={totalKpiPlans} helper={`${approvalRate}% approved`} tone="bg-blue-600 text-white" />
+              <DashboardStatCard icon={FiActivity} label="Active" value={activeKpiPlans} helper="In current use" tone="bg-emerald-600 text-white" />
+              <DashboardStatCard icon={FiClock} label="Pending" value={pendingKpiPlans} helper="Awaiting approval" tone="bg-amber-500 text-white" />
+              <DashboardStatCard icon={FiCheckCircle} label="Completed" value={completedKpiPlans} helper="Closed KPI" tone="bg-violet-600 text-white" />
+              <DashboardStatCard icon={FiUsers} label="Employees" value={employeeCoverage} helper="With KPI setting" tone="bg-cyan-600 text-white" />
+              <DashboardStatCard icon={FiSliders} label="Avg. Weight" value={`${averageKpiWeight}%`} helper={`${totalKpiWeight}% total`} tone="bg-rose-600 text-white" />
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-4">
+              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                <h3 className="mb-4 text-base font-extrabold text-slate-900">KPI Status</h3>
+                {statusData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <PieChart>
+                      <Pie data={statusData} cx="50%" cy="50%" innerRadius={45} outerRadius={72} dataKey="count" label={({ name, count }) => `${name}: ${count}`}>
+                        {statusData.map((_, i) => <Cell key={i} fill={kpiChartColors[i % kpiChartColors.length]} />)}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : <EmptyState message="No data" />}
+              </div>
+
+              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                <h3 className="mb-4 text-base font-extrabold text-slate-900">KPI by Period</h3>
+                {periodData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={periodData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 700, fill: "#334155" }} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#64748b" }} />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="#166432" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : <EmptyState message="No data" />}
+              </div>
+
+              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                <h3 className="mb-4 text-base font-extrabold text-slate-900">KPI by Category</h3>
+                {categoryData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={categoryData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 700, fill: "#334155" }} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#64748b" }} />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="#2563eb" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : <EmptyState message="No data" />}
+              </div>
+
+              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                <h3 className="mb-4 text-base font-extrabold text-slate-900">Measurement Method</h3>
+                {methodData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <PieChart>
+                      <Pie data={methodData} cx="50%" cy="50%" innerRadius={45} outerRadius={72} dataKey="count" label={({ name, count }) => `${name}: ${count}`}>
+                        {methodData.map((_, i) => <Cell key={i} fill={kpiChartColors[i % kpiChartColors.length]} />)}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : <EmptyState message="No data" />}
+              </div>
+            </div>
+
+            <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+              <table className="w-full text-left text-sm">
+                <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3">KPI Plan ID</th>
+                    <th className="px-4 py-3">KPI Code</th>
+                    <th className="px-4 py-3">Employee</th>
+                    <th className="px-4 py-3">Department</th>
+                    <th className="px-4 py-3">Position</th>
+                    <th className="px-4 py-3">Period</th>
+                    <th className="px-4 py-3">KPI Title</th>
+                    <th className="px-4 py-3">Method</th>
+                    <th className="px-4 py-3">Target</th>
+                    <th className="px-4 py-3">Weight</th>
+                    <th className="px-4 py-3">Data Source</th>
+                    <th className="px-4 py-3">LM Approval</th>
+                    <th className="px-4 py-3">HR Review</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {kpiPlans.length === 0 ? (
+                    <tr><td colSpan={15}><EmptyState message="No KPI settings yet" /></td></tr>
+                  ) : kpiPlans.map((plan) => (
+                    <tr key={plan.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3 font-bold text-slate-700">{plan.kpi_plan_id}</td>
+                      <td className="px-4 py-3">{plan.kpi_code || "-"}</td>
+                      <td className="px-4 py-3">{plan.employee_name}</td>
+                      <td className="px-4 py-3">{plan.department || "-"}</td>
+                      <td className="px-4 py-3">{plan.position || "-"}</td>
+                      <td className="px-4 py-3">{plan.kpi_period}</td>
+                      <td className="px-4 py-3 max-w-[200px] truncate">{plan.kpi_title}</td>
+                      <td className="px-4 py-3">{plan.measurement_method}</td>
+                      <td className="px-4 py-3">{plan.target_value}</td>
+                      <td className="px-4 py-3">{plan.weight}%</td>
+                      <td className="px-4 py-3 max-w-[160px] truncate">{plan.data_source || "-"}</td>
+                      <td className="px-4 py-3"><StatusBadge status={plan.line_manager_approval} /></td>
+                      <td className="px-4 py-3"><StatusBadge status={plan.hr_review || "Pending"} /></td>
+                      <td className="px-4 py-3"><StatusBadge status={plan.final_status} /></td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => openEditKpiPlan(plan)} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600" title="Edit"><FiEdit2 className="h-4 w-4" /></button>
+                          <button onClick={() => updateKpiPlanStatus(plan.id, "Pending Approval")} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-amber-600" title="Submit for Approval"><FiClock className="h-4 w-4" /></button>
+                          <button onClick={() => updateKpiPlanStatus(plan.id, "Active")} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-emerald-600" title="Activate"><FiCheckCircle className="h-4 w-4" /></button>
+                          <button onClick={() => deleteKpiPlan(plan.id)} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-red-600" title="Delete"><FiTrash2 className="h-4 w-4" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -954,11 +1048,96 @@ export default function PerformancePage() {
       { id: "dashboard", label: "Monitoring Dashboard" },
     ];
     const selectedMonitoringPlan = kpiPlans.find((plan) => String(plan.id) === String(monitoringForm.kpi_plan_id));
+    const previewTarget = Number(selectedMonitoringPlan?.target_value || 0);
+    const previewWeight = Number(selectedMonitoringPlan?.weight || 0);
+    const previewAchievement = Number(monitoringForm.current_achievement || 0);
+    const previewAchievementPct = previewTarget ? ((previewAchievement / previewTarget) * 100).toFixed(2) : "";
+    const previewKpiScore = previewTarget ? (((previewAchievement / previewTarget) * previewWeight)).toFixed(2) : "";
 
     const onTrack = monitoring.filter((m) => m.status === "On Track").length;
     const atRisk = monitoring.filter((m) => m.status === "At Risk").length;
     const behind = monitoring.filter((m) => m.status === "Behind Target").length;
     const completed = monitoring.filter((m) => m.status === "Completed").length;
+    const reviewed = monitoring.filter((m) => m.monitoring_status === "Reviewed").length;
+    const averageAchievement = monitoring.length
+      ? Math.round(monitoring.reduce((sum, m) => sum + Number(m.achievement_pct || 0), 0) / monitoring.length)
+      : 0;
+    const totalKpiScore = monitoring.reduce((sum, m) => sum + Number(m.kpi_score || 0), 0).toFixed(2);
+    const monitoringCountBy = (rows, key, fallback = "Unassigned") => {
+      const counts = rows.reduce((acc, row) => {
+        const label = row[key] || fallback;
+        acc[label] = (acc[label] || 0) + 1;
+        return acc;
+      }, {});
+      return Object.entries(counts).map(([name, count]) => ({ name, count }));
+    };
+    const monitoringStatusData = monitoringCountBy(monitoring, "status", "No Status");
+    const reviewStatusData = monitoringCountBy(monitoring, "monitoring_status", "No Review");
+    const achievementData = monitoring.map((m) => ({
+      name: m.kpi_title || `KPI ${m.kpi_plan_id}`,
+      achievement: Number(m.achievement_pct || 0),
+      score: Number(m.kpi_score || 0),
+    }));
+    const MONITORING_COLORS = ["#166432", "#f59e0b", "#dc2626", "#2563eb", "#7c3aed", "#0891b2"];
+
+    const MonitoringDashboard = () => (
+      <div className="grid gap-4">
+        <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+          <DashboardStatCard icon={FiList} label="Records" value={monitoring.length} helper="Monitoring entries" tone="bg-blue-600 text-white" />
+          <DashboardStatCard icon={FiCheckCircle} label="On Track" value={onTrack} helper="Healthy progress" tone="bg-emerald-600 text-white" />
+          <DashboardStatCard icon={FiAlertCircle} label="At Risk" value={atRisk} helper={`${behind} behind`} tone="bg-amber-500 text-white" />
+          <DashboardStatCard icon={FiAward} label="Completed" value={completed} helper="Closed progress" tone="bg-violet-600 text-white" />
+          <DashboardStatCard icon={FiTrendingUp} label="Avg. Achievement" value={`${averageAchievement}%`} helper="Across records" tone="bg-cyan-600 text-white" />
+          <DashboardStatCard icon={FiThumbsUp} label="Reviewed" value={reviewed} helper={`Score ${totalKpiScore}`} tone="bg-rose-600 text-white" />
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-3">
+          <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <h3 className="mb-4 text-base font-extrabold text-slate-900">Progress Status</h3>
+            {monitoringStatusData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie data={monitoringStatusData} cx="50%" cy="50%" innerRadius={45} outerRadius={72} dataKey="count" label={({ name, count }) => `${name}: ${count}`}>
+                    {monitoringStatusData.map((_, i) => <Cell key={i} fill={MONITORING_COLORS[i % MONITORING_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : <EmptyState message="No data" />}
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <h3 className="mb-4 text-base font-extrabold text-slate-900">Review Status</h3>
+            {reviewStatusData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={reviewStatusData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 700, fill: "#334155" }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#64748b" }} />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#166432" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <EmptyState message="No data" />}
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <h3 className="mb-4 text-base font-extrabold text-slate-900">Achievement %</h3>
+            {achievementData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={achievementData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 700, fill: "#334155" }} />
+                  <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
+                  <Tooltip />
+                  <Bar dataKey="achievement" fill="#2563eb" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <EmptyState message="No data" />}
+          </div>
+        </div>
+      </div>
+    );
 
     return (
       <div>
@@ -976,66 +1155,80 @@ export default function PerformancePage() {
         </div>
 
         {monSubTab === "list" && (
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase text-slate-500">
-                <tr>
-                  <th className="px-4 py-3">KPI</th>
-                  <th className="px-4 py-3">Target</th>
-                  <th className="px-4 py-3">Achievement</th>
-                  <th className="px-4 py-3">%</th>
-                  <th className="px-4 py-3">Score</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Review</th>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {monitoring.length === 0 ? (
-                  <tr><td colSpan={9}><EmptyState message="No monitoring records" /></td></tr>
-                ) : monitoring.map((m) => (
-                  <tr key={m.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 max-w-[150px] truncate font-bold text-slate-700">{m.kpi_title}</td>
-                    <td className="px-4 py-3">{m.kpi_target}</td>
-                    <td className="px-4 py-3">{m.current_achievement}</td>
-                    <td className="px-4 py-3">{m.achievement_pct != null ? `${m.achievement_pct}%` : "-"}</td>
-                    <td className="px-4 py-3">{m.kpi_score != null ? m.kpi_score.toFixed(2) : "-"}</td>
-                    <td className="px-4 py-3"><StatusBadge status={m.status} /></td>
-                    <td className="px-4 py-3"><StatusBadge status={m.monitoring_status} /></td>
-                    <td className="px-4 py-3">{m.monitoring_date?.slice(0, 10)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => {
-                          const comment = prompt("Manager comment:");
-                          if (comment !== null) {
-                            const actionRequired = prompt("Action required:", m.action_required || "");
-                            reviewMonitoring(m.id, { manager_comment: comment, action_required: actionRequired || "", monitoring_status: "Reviewed" });
-                          }
-                        }} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600" title="Review">
-                          <FiCheckCircle className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => deleteMonitoring(m.id)} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-red-600" title="Delete">
-                          <FiTrash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
+          <div className="grid gap-4">
+            <MonitoringDashboard />
+            <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+              <table className="w-full min-w-[2600px] text-left text-sm">
+                <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3">KPI Plan ID</th>
+                    <th className="px-4 py-3">KPI Period</th>
+                    <th className="px-4 py-3">Employee Name</th>
+                    <th className="px-4 py-3">Department</th>
+                    <th className="px-4 py-3">KPI Title</th>
+                    <th className="px-4 py-3">KPI Target</th>
+                    <th className="px-4 py-3">Monitoring Date</th>
+                    <th className="px-4 py-3">Current Achievement</th>
+                    <th className="px-4 py-3">Achievement (%)</th>
+                    <th className="px-4 py-3">KPI Score</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Supporting Evidence</th>
+                    <th className="px-4 py-3">Employee Comment</th>
+                    <th className="px-4 py-3">Manager Comment</th>
+                    <th className="px-4 py-3">Action Required</th>
+                    <th className="px-4 py-3">Monitoring Status</th>
+                    <th className="px-4 py-3">Remarks</th>
+                    <th className="px-4 py-3">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {monitoring.length === 0 ? (
+                    <tr><td colSpan={18}><EmptyState message="No monitoring records" /></td></tr>
+                  ) : monitoring.map((m) => (
+                    <tr key={m.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3 font-bold text-[#111b4f]">{m.kpi_plan_code || m.kpi_plan_id}</td>
+                      <td className="px-4 py-3">{m.kpi_period || "-"}</td>
+                      <td className="px-4 py-3 font-bold text-slate-700">{m.employee_name || "-"}</td>
+                      <td className="px-4 py-3">{m.department || "-"}</td>
+                      <td className="px-4 py-3 max-w-[180px] truncate font-bold text-slate-700">{m.kpi_title}</td>
+                      <td className="px-4 py-3">{m.kpi_target}</td>
+                      <td className="px-4 py-3">{m.monitoring_date?.slice(0, 10)}</td>
+                      <td className="px-4 py-3">{m.current_achievement}</td>
+                      <td className="px-4 py-3">{m.achievement_pct != null ? `${m.achievement_pct}%` : "-"}</td>
+                      <td className="px-4 py-3">{m.kpi_score != null ? m.kpi_score.toFixed(2) : "-"}</td>
+                      <td className="px-4 py-3"><StatusBadge status={m.status} /></td>
+                      <td className="px-4 py-3 max-w-[180px] truncate">{m.supporting_evidence || "-"}</td>
+                      <td className="px-4 py-3 max-w-[220px] truncate">{m.employee_comment || "-"}</td>
+                      <td className="px-4 py-3 max-w-[220px] truncate">{m.manager_comment || "-"}</td>
+                      <td className="px-4 py-3 max-w-[220px] truncate">{m.action_required || "-"}</td>
+                      <td className="px-4 py-3"><StatusBadge status={m.monitoring_status} /></td>
+                      <td className="px-4 py-3 max-w-[220px] truncate">{m.remarks || "-"}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => {
+                            const comment = prompt("Manager comment:");
+                            if (comment !== null) {
+                              const actionRequired = prompt("Action required:", m.action_required || "");
+                              reviewMonitoring(m.id, { manager_comment: comment, action_required: actionRequired || "", monitoring_status: "Reviewed" });
+                            }
+                          }} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600" title="Review">
+                            <FiCheckCircle className="h-4 w-4" />
+                          </button>
+                          <button onClick={() => deleteMonitoring(m.id)} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-red-600" title="Delete">
+                            <FiTrash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {monSubTab === "dashboard" && (
-          <div className="grid gap-6">
-            <div className="grid gap-4 sm:grid-cols-4">
-              <DashboardStatCard icon={FiCheckCircle} label="On Track" value={onTrack} tone="bg-emerald-600 text-white" />
-              <DashboardStatCard icon={FiAlertCircle} label="At Risk" value={atRisk} tone="bg-amber-500 text-white" />
-              <DashboardStatCard icon={FiX} label="Behind Target" value={behind} tone="bg-red-500 text-white" />
-              <DashboardStatCard icon={FiAward} label="Completed" value={completed} tone="bg-blue-600 text-white" />
-            </div>
-          </div>
+          <MonitoringDashboard />
         )}
 
         {/* Monitoring Modal */}
@@ -1048,9 +1241,13 @@ export default function PerformancePage() {
               </select>
             </Field>
             {selectedMonitoringPlan && (
-              <div className="sm:col-span-2 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600 sm:grid-cols-4">
+              <div className="sm:col-span-2 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600 sm:grid-cols-3">
                 <div>
-                  <p className="text-xs font-bold uppercase text-slate-400">Employee</p>
+                  <p className="text-xs font-bold uppercase text-slate-400">KPI Period</p>
+                  <p className="font-bold text-slate-800">{selectedMonitoringPlan.kpi_period || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase text-slate-400">Employee Name</p>
                   <p className="font-bold text-slate-800">{selectedMonitoringPlan.employee_name || "-"}</p>
                 </div>
                 <div>
@@ -1058,12 +1255,16 @@ export default function PerformancePage() {
                   <p className="font-bold text-slate-800">{selectedMonitoringPlan.department || "-"}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold uppercase text-slate-400">Period</p>
-                  <p className="font-bold text-slate-800">{selectedMonitoringPlan.kpi_period || "-"}</p>
+                  <p className="text-xs font-bold uppercase text-slate-400">KPI Title</p>
+                  <p className="font-bold text-slate-800">{selectedMonitoringPlan.kpi_title || "-"}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold uppercase text-slate-400">Target / Weight</p>
-                  <p className="font-bold text-slate-800">{selectedMonitoringPlan.target_value} / {selectedMonitoringPlan.weight}%</p>
+                  <p className="text-xs font-bold uppercase text-slate-400">KPI Target</p>
+                  <p className="font-bold text-slate-800">{selectedMonitoringPlan.target_value || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase text-slate-400">Weight</p>
+                  <p className="font-bold text-slate-800">{selectedMonitoringPlan.weight || "-"}%</p>
                 </div>
               </div>
             )}
@@ -1073,21 +1274,33 @@ export default function PerformancePage() {
             <Field label="Current Achievement" required>
               <input type="number" step="any" className={inputClass} value={monitoringForm.current_achievement} onChange={(e) => setMonitoringForm({ ...monitoringForm, current_achievement: e.target.value })} />
             </Field>
+            <Field label="Achievement (%)">
+              <input readOnly className={`${inputClass} bg-slate-50 text-slate-500`} value={previewAchievementPct ? `${previewAchievementPct}%` : ""} />
+            </Field>
+            <Field label="KPI Score">
+              <input readOnly className={`${inputClass} bg-slate-50 text-slate-500`} value={previewKpiScore} />
+            </Field>
             <Field label="KPI Status">
               <select className={inputClass} value={monitoringForm.status} onChange={(e) => setMonitoringForm({ ...monitoringForm, status: e.target.value })}>
                 {MONITORING_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </Field>
-            <Field label="Monitoring Status">
-              <select className={inputClass} value={monitoringForm.monitoring_status} onChange={(e) => setMonitoringForm({ ...monitoringForm, monitoring_status: e.target.value })}>
-                {MONITORING_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
+            <Field label="Supporting Evidence" className="sm:col-span-2">
+              <input className={inputClass} placeholder="URL or file path" value={monitoringForm.supporting_evidence} onChange={(e) => setMonitoringForm({ ...monitoringForm, supporting_evidence: e.target.value })} />
             </Field>
             <Field label="Employee Comment" className="sm:col-span-2">
               <textarea className={inputClass} rows={2} value={monitoringForm.employee_comment} onChange={(e) => setMonitoringForm({ ...monitoringForm, employee_comment: e.target.value })} />
             </Field>
-            <Field label="Supporting Evidence" className="sm:col-span-2">
-              <input className={inputClass} placeholder="URL or file path" value={monitoringForm.supporting_evidence} onChange={(e) => setMonitoringForm({ ...monitoringForm, supporting_evidence: e.target.value })} />
+            <Field label="Manager Comment" className="sm:col-span-2">
+              <textarea className={inputClass} rows={2} value={monitoringForm.manager_comment} onChange={(e) => setMonitoringForm({ ...monitoringForm, manager_comment: e.target.value })} />
+            </Field>
+            <Field label="Action Required" className="sm:col-span-2">
+              <textarea className={inputClass} rows={2} value={monitoringForm.action_required} onChange={(e) => setMonitoringForm({ ...monitoringForm, action_required: e.target.value })} />
+            </Field>
+            <Field label="Monitoring Status">
+              <select className={inputClass} value={monitoringForm.monitoring_status} onChange={(e) => setMonitoringForm({ ...monitoringForm, monitoring_status: e.target.value })}>
+                {MONITORING_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
             </Field>
             <Field label="Remarks" className="sm:col-span-2">
               <textarea className={inputClass} rows={2} value={monitoringForm.remarks} onChange={(e) => setMonitoringForm({ ...monitoringForm, remarks: e.target.value })} />

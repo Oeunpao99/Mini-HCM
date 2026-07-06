@@ -431,6 +431,8 @@ class KpiMonitoringIn(BaseModel):
     current_achievement: Decimal = Field(default=0, ge=0)
     supporting_evidence: str | None = None
     employee_comment: str | None = None
+    manager_comment: str | None = None
+    action_required: str | None = None
     status: str = "Not Started"
     monitoring_status: str = "Draft"
     remarks: str | None = None
@@ -445,6 +447,7 @@ class KpiMonitoringReviewIn(BaseModel):
 class KpiMonitoringOut(BaseModel):
     id: int
     kpi_plan_id: int
+    kpi_plan_code: str | None = None
     kpi_title: str | None = None
     kpi_target: float | None = None
     kpi_weight: float | None = None

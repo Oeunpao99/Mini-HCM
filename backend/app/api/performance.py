@@ -107,6 +107,7 @@ def _kpi_monitoring_payload(row: KpiMonitoring) -> dict:
     return {
         "id": row.id,
         "kpi_plan_id": row.kpi_plan_id,
+        "kpi_plan_code": plan.kpi_plan_id if plan else None,
         "kpi_title": plan.kpi_title if plan else None,
         "kpi_target": _money(plan.target_value) if plan else None,
         "kpi_weight": _money(plan.weight) if plan else None,
@@ -394,15 +395,6 @@ def create_kpi_monitoring(
     data["achievement_pct"] = float((current / target * 100).quantize(Decimal("0.01"))) if target else 0
     weight = Decimal(str(plan.weight or 0))
     data["kpi_score"] = float(((current / target * 100) * weight / 100).quantize(Decimal("0.01"))) if target else 0
-
-    if current >= target:
-        data["status"] = "Completed"
-    elif current >= target * Decimal("0.8"):
-        data["status"] = "On Track"
-    elif current >= target * Decimal("0.5"):
-        data["status"] = "At Risk"
-    else:
-        data["status"] = "Behind Target"
 
     row = KpiMonitoring(**data)
     db.add(row)

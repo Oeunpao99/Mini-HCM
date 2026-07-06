@@ -72,7 +72,7 @@ const moduleGroups = [
       { to: "/admin", label: "Attendance Management", icon: <BiSolidTimeFive className="h-4 w-4" aria-hidden /> },
       { to: "/requests?type=leave", label: "Leave Management", icon: <FiCalendar className="h-4 w-4" aria-hidden /> },
       { to: "/requests?type=ot", label: "OT Management", icon: <FiClock className="h-4 w-4" aria-hidden /> },
-      { to: "/shift", label: "Shift & Schedule", icon: <FiRefreshCw className="h-4 w-4" aria-hidden /> },
+      { to: "/shift", label: "Shift & Schedule Mgt", icon: <FiRefreshCw className="h-4 w-4" aria-hidden /> },
     ],
   },
   {
