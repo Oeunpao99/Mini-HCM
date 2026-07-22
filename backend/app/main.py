@@ -1,7 +1,10 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
-from app.api import admin, attendance, auth, company, employee_info, hris, payroll_comp, performance, requests, shifts, swaps
+from app.api import admin, ai_chat, attendance, auth, company, employee_info, hris, payroll_comp, performance, requests, shifts, swaps
 from app.core.config import settings
 from app.core.schema import ensure_runtime_schema
 from app.core.seed import seed_default_data
@@ -27,6 +30,9 @@ finally:
 
 app = FastAPI(title=settings.app_name)
 
+Path(settings.media_dir).mkdir(parents=True, exist_ok=True)
+app.mount("/api/media", StaticFiles(directory=settings.media_dir), name="media")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
@@ -46,6 +52,7 @@ app.include_router(shifts.router)
 app.include_router(performance.router)
 app.include_router(payroll_comp.router)
 app.include_router(employee_info.router)
+app.include_router(ai_chat.router)
 
 
 @app.get("/")

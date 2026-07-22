@@ -15,7 +15,14 @@ const LoginPage = () => {
       await login(empCode, password);
       navigate("/");
     } catch (err) {
-      setError(err?.response?.data?.detail || "Invalid login");
+      const detail = err?.response?.data?.detail;
+      if (Array.isArray(detail)) {
+        setError(detail.map((d) => d.msg).join(", "));
+      } else if (typeof detail === "string") {
+        setError(detail);
+      } else {
+        setError("Invalid login");
+      }
     }
   };
 

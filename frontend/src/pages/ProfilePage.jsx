@@ -1,23 +1,27 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FiAlertTriangle,
   FiAward,
   FiBookOpen,
   FiBriefcase,
+  FiCamera,
   FiCalendar,
   FiCheckCircle,
   FiClock,
   FiCreditCard,
+  FiEdit2,
   FiFileText,
   FiMail,
   FiMapPin,
   FiPhone,
   FiRefreshCw,
+  FiSave,
   FiShield,
   FiLogOut,
   FiTrendingUp,
   FiUser,
   FiUsers,
+  FiX,
 } from "react-icons/fi";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
@@ -571,7 +575,11 @@ function TabPanel({ activeTab, profile, attendance }) {
         <RecordGrid
           rows={[
             { icon: FiPhone, label: "Phone Number", value: employee.phone },
+            { icon: FiMail, label: "Personal Email", value: employee.personal_email },
             { icon: FiMapPin, label: "Address", value: employee.address },
+            { icon: FiMapPin, label: "Permanent Address", value: employee.permanent_address },
+            { icon: FiUsers, label: "Emergency Contact", value: employee.emergency_contact_name },
+            { icon: FiPhone, label: "Emergency Phone", value: employee.emergency_contact_phone },
             { icon: FiUsers, label: "Manager", value: manager?.name },
             { icon: FiMail, label: "Manager Email", value: manager?.email },
           ]}
@@ -589,6 +597,11 @@ export default function ProfilePage() {
   const [attendance, setAttendance] = useState(null);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profileDraft, setProfileDraft] = useState({});
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef(null);
 
   const load = async () => {
     setLoading(true);
@@ -611,6 +624,69 @@ export default function ProfilePage() {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const openProfileEditor = () => {
+    const current = profile?.profile || {};
+    setProfileDraft({
+      phone: current.phone || "",
+      personal_email: current.personal_email || "",
+      address: current.address || "",
+      permanent_address: current.permanent_address || "",
+      emergency_contact_name: current.emergency_contact_name || "",
+      emergency_contact_relation: current.emergency_contact_relation || "",
+      emergency_contact_phone: current.emergency_contact_phone || "",
+    });
+    setEditingProfile(true);
+  };
+
+  const saveProfile = async (event) => {
+    event.preventDefault();
+    setSavingProfile(true);
+    try {
+      const payload = Object.fromEntries(
+        Object.entries(profileDraft).map(([field, value]) => [field, value.trim() || null]),
+      );
+      const response = await api.patch("/api/hris/my-profile", payload);
+      setProfile((current) => ({
+        ...current,
+        profile: { ...current?.profile, ...response.data.profile },
+      }));
+      setEditingProfile(false);
+      setStatus("Profile saved");
+    } catch (err) {
+      setStatus(err?.response?.data?.detail || "Could not save profile");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const uploadProfilePhoto = async (file) => {
+    if (!file) return;
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      setStatus("Choose a JPG or PNG image");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setStatus("Profile photo must be 5 MB or smaller");
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append("photo", file);
+      const response = await api.post("/api/hris/my-profile/photo", formData);
+      setProfile((current) => ({
+        ...current,
+        profile: { ...current?.profile, profile_photo: response.data.profile_photo },
+      }));
+      setStatus("Profile photo updated");
+    } catch (err) {
+      setStatus(err?.response?.data?.detail || "Could not upload profile photo");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   const user = profile?.user || {};
   const employee = profile?.profile || {};
@@ -665,12 +741,35 @@ export default function ProfilePage() {
         <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm md:p-6">
           <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
             <div className="flex min-w-0 flex-col gap-5 lg:flex-row lg:items-center">
-              <div className="grid h-32 w-32 shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-blue-100 via-slate-100 to-emerald-100 text-4xl font-extrabold text-blue-700 ring-1 ring-slate-200">
-                {employee.profile_photo ? (
-                  <img src={employee.profile_photo} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  initialsFor(displayName)
-                )}
+              <div className="relative h-32 w-32 shrink-0">
+                <div className="grid h-full w-full place-items-center overflow-hidden rounded-full bg-gradient-to-br from-blue-100 via-slate-100 to-emerald-100 text-4xl font-extrabold text-blue-700 ring-1 ring-slate-200">
+                  {employee.profile_photo ? (
+                    <img src={employee.profile_photo} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    initialsFor(displayName)
+                  )}
+                </div>
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  className="sr-only"
+                  onChange={(event) => {
+                    const [file] = event.target.files || [];
+                    event.target.value = "";
+                    void uploadProfilePhoto(file);
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={uploadingPhoto}
+                  className="absolute bottom-0 right-0 grid h-9 w-9 place-items-center rounded-full bg-blue-600 text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                  aria-label="Upload profile photo"
+                  title="Upload profile photo"
+                >
+                  <FiCamera className="h-4 w-4" aria-hidden />
+                </button>
               </div>
 
               <div className="min-w-0 flex-1">
@@ -702,6 +801,14 @@ export default function ProfilePage() {
             </div>
 
             <div className="flex shrink-0 flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={openProfileEditor}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-blue-600 px-4 text-sm font-extrabold text-white shadow-sm hover:bg-blue-700"
+              >
+                <FiEdit2 className="h-4 w-4" aria-hidden />
+                Edit profile
+              </button>
               <button
                 type="button"
                 onClick={load}
@@ -739,6 +846,62 @@ export default function ProfilePage() {
                 <MetricCard key={item.label} {...item} />
               ))}
             </section>
+
+            {editingProfile && (
+              <section className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm md:p-6">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h2 className="text-lg font-extrabold text-[#111b4f]">Edit Contact Information</h2>
+                    <p className="mt-1 text-sm font-semibold text-[#37517e]">Employment, salary, and bank information are managed by HR.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingProfile(false)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100"
+                    aria-label="Close profile editor"
+                  >
+                    <FiX className="h-5 w-5" aria-hidden />
+                  </button>
+                </div>
+                <form onSubmit={saveProfile} className="mt-5 grid gap-4 md:grid-cols-2">
+                  <label className="grid gap-2 text-sm font-bold text-[#37517e]">
+                    Phone Number
+                    <input className="h-11 rounded-md border border-slate-200 px-3 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={profileDraft.phone || ""} onChange={(event) => setProfileDraft((current) => ({ ...current, phone: event.target.value }))} />
+                  </label>
+                  <label className="grid gap-2 text-sm font-bold text-[#37517e]">
+                    Personal Email
+                    <input type="email" className="h-11 rounded-md border border-slate-200 px-3 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={profileDraft.personal_email || ""} onChange={(event) => setProfileDraft((current) => ({ ...current, personal_email: event.target.value }))} />
+                  </label>
+                  <label className="grid gap-2 text-sm font-bold text-[#37517e] md:col-span-2">
+                    Current Address
+                    <textarea className="min-h-24 rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={profileDraft.address || ""} onChange={(event) => setProfileDraft((current) => ({ ...current, address: event.target.value }))} />
+                  </label>
+                  <label className="grid gap-2 text-sm font-bold text-[#37517e] md:col-span-2">
+                    Permanent Address
+                    <textarea className="min-h-24 rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={profileDraft.permanent_address || ""} onChange={(event) => setProfileDraft((current) => ({ ...current, permanent_address: event.target.value }))} />
+                  </label>
+                  <label className="grid gap-2 text-sm font-bold text-[#37517e]">
+                    Emergency Contact Name
+                    <input className="h-11 rounded-md border border-slate-200 px-3 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={profileDraft.emergency_contact_name || ""} onChange={(event) => setProfileDraft((current) => ({ ...current, emergency_contact_name: event.target.value }))} />
+                  </label>
+                  <label className="grid gap-2 text-sm font-bold text-[#37517e]">
+                    Relationship
+                    <input className="h-11 rounded-md border border-slate-200 px-3 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={profileDraft.emergency_contact_relation || ""} onChange={(event) => setProfileDraft((current) => ({ ...current, emergency_contact_relation: event.target.value }))} />
+                  </label>
+                  <label className="grid gap-2 text-sm font-bold text-[#37517e]">
+                    Emergency Contact Phone
+                    <input className="h-11 rounded-md border border-slate-200 px-3 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={profileDraft.emergency_contact_phone || ""} onChange={(event) => setProfileDraft((current) => ({ ...current, emergency_contact_phone: event.target.value }))} />
+                  </label>
+                  <div className="flex items-end justify-end gap-3 md:col-span-2">
+                    <button type="button" onClick={() => setEditingProfile(false)} className="h-10 rounded-md border border-slate-200 px-4 text-sm font-extrabold text-slate-700 hover:bg-slate-50">Cancel</button>
+                    <button type="submit" disabled={savingProfile} className="inline-flex h-10 items-center gap-2 rounded-md bg-[#166432] px-4 text-sm font-extrabold text-white hover:bg-[#0d274a] disabled:cursor-not-allowed disabled:bg-slate-400">
+                      <FiSave className="h-4 w-4" aria-hidden />
+                      {savingProfile ? "Saving..." : "Save changes"}
+                    </button>
+                  </div>
+                </form>
+              </section>
+            )}
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
               <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">

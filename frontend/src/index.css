@@ -333,6 +333,227 @@ a:active {
   animation: successPulse 700ms ease-out both;
 }
 
+@keyframes aiRecordingDots {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes aiRecordTarget {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+}
+
+@keyframes aiRequestFlight {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(-14deg) scale(0.5);
+  }
+  14% {
+    opacity: 1;
+    transform: translate(16px, -16px) rotate(8deg) scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(var(--flight-x), var(--flight-y)) rotate(360deg) scale(0.72);
+  }
+}
+
+@keyframes aiSuccessToast {
+  0% {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.92);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(2px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes aiRecordingBackdrop {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.ai-recording-status,
+.ai-save-status,
+.ai-request-success {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid rgba(22, 100, 50, 0.16);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
+  backdrop-filter: blur(12px);
+}
+
+.ai-recording-status {
+  z-index: 1;
+  width: min(22rem, calc(100vw - 2rem));
+  transform: translate(-50%, -50%);
+  padding: 1rem;
+  border-radius: 1.1rem;
+  color: #166432;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  animation: modalPop 260ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+.ai-recording-status p {
+  margin: 0;
+  color: #166432;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.ai-recording-status div span {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.ai-recording-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(4px);
+  animation: aiRecordingBackdrop 180ms ease-out both;
+}
+
+.ai-recording-bot,
+.ai-request-success-icon {
+  display: grid;
+  height: 2rem;
+  width: 2rem;
+  place-items: center;
+  border-radius: 0.7rem;
+  background: #166432;
+  color: #fff;
+}
+
+.ai-recording-dots {
+  display: inline-flex;
+  gap: 0.2rem;
+}
+
+.ai-recording-dots i {
+  height: 0.28rem;
+  width: 0.28rem;
+  border-radius: 9999px;
+  background: #166432;
+  animation: aiRecordingDots 1s ease-in-out infinite;
+}
+
+.ai-recording-dots i:nth-child(2) {
+  animation-delay: 140ms;
+}
+
+.ai-recording-dots i:nth-child(3) {
+  animation-delay: 280ms;
+}
+
+.ai-request-flight {
+  position: fixed;
+  display: grid;
+  height: 3rem;
+  width: 3rem;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 0.95rem;
+  background: linear-gradient(135deg, #1d8a4c, #166432);
+  color: #fff;
+  box-shadow: 0 14px 30px rgba(22, 100, 50, 0.35);
+  animation: aiRequestFlight 800ms cubic-bezier(0.2, 0.8, 0.25, 1) forwards;
+}
+
+.ai-record-target {
+  position: fixed;
+  height: 3.5rem;
+  width: 3.5rem;
+  border: 2px solid #22c55e;
+  border-radius: 9999px;
+  background: rgba(220, 252, 231, 0.38);
+  animation: aiRecordTarget 820ms ease-out infinite;
+}
+
+.ai-save-status {
+  right: 1.5rem;
+  top: 5rem;
+  padding: 0.7rem 1rem;
+  border-radius: 0.85rem;
+  color: #166432;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.ai-save-spinner {
+  height: 1rem;
+  width: 1rem;
+  border: 2px solid #bbf7d0;
+  border-top-color: #166432;
+  border-radius: 9999px;
+  animation: spin 700ms linear infinite;
+}
+
+.ai-request-success {
+  right: 1.5rem;
+  top: 5rem;
+  min-width: min(22rem, calc(100vw - 2rem));
+  padding: 0.8rem 1rem;
+  border-color: rgba(34, 197, 94, 0.34);
+  border-radius: 1rem;
+  animation: aiSuccessToast 400ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+.ai-request-success p {
+  margin: 0;
+  color: #166432;
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+
+.ai-request-success span:not(.ai-request-success-icon) {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-recording-dots i,
+  .ai-request-flight,
+  .ai-record-target,
+  .ai-save-spinner,
+  .ai-request-success {
+    animation-duration: 1ms;
+    animation-iteration-count: 1;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;

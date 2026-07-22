@@ -23,12 +23,12 @@ Cross-platform attendance and request management system using:
 - Unified requests (leave, permission, flexible, OT)
 
 - Swap attendance request flow (employee + manager/admin)
-- Create a database (example uses `attendance_db`) and a user with privileges.
+- Create a database (example uses `hcm_ai_db`) and a user with privileges.
 - Import `database.sql` using `psql` or a GUI like pgAdmin. Example with psql:
 
 ```bash
-psql -U postgres -h localhost -p 5432 -c "CREATE DATABASE attendance_db;"
-psql -U postgres -h localhost -p 5432 -d attendance_db -f database.sql
+psql -U postgres -h localhost -p 5432 -c "CREATE DATABASE hcm_ai_db;"
+psql -U postgres -h localhost -p 5432 -d hcm_ai_db -f database.sql
 ```
 
 - Role-based company location/radius override (manager/admin)

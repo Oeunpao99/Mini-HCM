@@ -26,7 +26,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Get database URL from environment variable
-database_url = os.getenv("DATABASE_URL", "postgresql+psycopg2://postgres:password@localhost:5432/attendance_db")
+database_url = os.getenv("DATABASE_URL", "postgresql+psycopg2://postgres:password@localhost:5432/hcm_ai_db")
 config.set_main_option("sqlalchemy.url", database_url)
 
 target_metadata = Base.metadata

@@ -60,6 +60,7 @@ export const defaultNewEmployee = {
   manager_id: "",
   temporary_password: "staff123",
   profile_photo: "",
+  profile_photo_file: null,
   phone: "",
   dob: "",
   gender: "",

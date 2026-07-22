@@ -1,5 +1,5 @@
-CREATE DATABASE IF NOT EXISTS attendance_db;
-USE attendance_db;
+CREATE DATABASE IF NOT EXISTS hcm_ai_db;
+USE hcm_ai_db;
 
 CREATE TABLE IF NOT EXISTS users (
     id INT PRIMARY KEY AUTO_INCREMENT,

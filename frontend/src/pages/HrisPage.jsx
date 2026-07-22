@@ -686,6 +686,14 @@ export default function HrisPage() {
     return changes;
   };
 
+  const uploadEmployeePhoto = async (userId) => {
+    if (!newEmployee.profile_photo_file) return;
+
+    const formData = new FormData();
+    formData.append("photo", newEmployee.profile_photo_file);
+    await api.post(`/api/hris/employees/${userId}/photo`, formData);
+  };
+
   const saveEmployee = async (event) => {
     event.preventDefault();
     if (!canManageEmployees) return;
@@ -707,9 +715,10 @@ export default function HrisPage() {
 
     try {
       const movementRecords = creatingNewAccount ? [] : buildEmployeeChangeHistory(editingEmployee, employeeForm);
+      let savedEmployee;
 
       if (creatingNewAccount) {
-        await api.post("/api/hris/employees/new", {
+        savedEmployee = (await api.post("/api/hris/employees/new", {
           ...employeeForm,
           first_name: newEmployee.first_name,
           last_name: newEmployee.last_name,
@@ -719,21 +728,26 @@ export default function HrisPage() {
           password: newEmployee.temporary_password,
           phone: newEmployee.phone || employeeForm.phone,
           address: newEmployee.address || employeeForm.address,
-          profile_photo: newEmployee.profile_photo || null,
           manager_id: newEmployee.manager_id ? Number(newEmployee.manager_id) : null,
           basic_salary: Number(employeeForm.basic_salary || 0),
           contract_end_date: employeeForm.contract_end_date || null,
-        });
+        })).data;
       } else {
-        await api.post("/api/hris/employees", {
+        savedEmployee = (await api.post("/api/hris/employees", {
           ...employeeForm,
           phone: newEmployee.phone || employeeForm.phone,
           address: newEmployee.address || employeeForm.address,
-          profile_photo: newEmployee.profile_photo || null,
           user_id: Number(employeeForm.user_id),
           basic_salary: Number(employeeForm.basic_salary || 0),
           contract_end_date: employeeForm.contract_end_date || null,
-        });
+        })).data;
+      }
+
+      let photoError = "";
+      try {
+        await uploadEmployeePhoto(savedEmployee.user_id);
+      } catch (error) {
+        photoError = error?.response?.data?.detail || "Could not upload the selected profile photo";
       }
 
       if (movementRecords.length) {
@@ -747,11 +761,13 @@ export default function HrisPage() {
       setDrawerOpen(false);
       setDetailEmployee(null);
       setStatus(
-        creatingNewAccount
-          ? "New staff account created"
-          : movementRecords.length
-            ? "Employee profile saved and movement history updated"
-            : "Employee profile saved",
+        photoError
+          ? `Employee profile saved, but ${photoError}`
+          : creatingNewAccount
+            ? "New staff account created"
+            : movementRecords.length
+              ? "Employee profile saved and movement history updated"
+              : "Employee profile saved",
       );
       await load();
     } catch (err) {

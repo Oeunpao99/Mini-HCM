@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import MANAGEMENT_HR_ROLE, get_current_user, get_db, require_roles
 from app.models.hris import (
     Department,
     EmployeeDocument,
@@ -25,7 +25,11 @@ from app.schemas.hris import (
     PositionOut,
 )
 
-router = APIRouter(prefix="/api/employee-info", tags=["employee-info"])
+router = APIRouter(
+    prefix="/api/employee-info",
+    tags=["employee-info"],
+    dependencies=[Depends(require_roles(MANAGEMENT_HR_ROLE))],
+)
 
 
 def _full_payload(profile: EmployeeProfile) -> dict:

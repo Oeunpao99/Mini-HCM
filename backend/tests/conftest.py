@@ -1,9 +1,10 @@
 import pytest
-from app.api import attendance, auth, company, hris, requests
+from app.api import ai_chat, attendance, auth, company, hris, requests
 from app.api.deps import get_db
 from app.core.security import get_password_hash
 from app.db.session import Base
 from app.models.company_location import CompanyLocation
+from app.models.ai_conversation import AiChatMessage, AiConversation, AiToolAudit  # noqa: F401
 from app.models.hris import EmployeeProfile
 from app.models.user import User
 from fastapi import FastAPI
@@ -28,6 +29,7 @@ def client(tmp_path):
 
     app = FastAPI()
     app.include_router(auth.router)
+    app.include_router(ai_chat.router)
     app.include_router(company.router)
     app.include_router(attendance.router)
     app.include_router(requests.router)
@@ -77,9 +79,11 @@ def client(tmp_path):
         db.add(
             EmployeeProfile(
                 user_id=employee.id,
+                phone="+855 12 345 678",
+                personal_email="employee.personal@example.com",
                 basic_salary=1500,
                 bank_account="TEST001",
-                status="active",
+                employment_status="Active",
             )
         )
         db.commit()

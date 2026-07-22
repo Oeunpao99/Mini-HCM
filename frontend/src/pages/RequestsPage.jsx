@@ -334,16 +334,16 @@ const isDateInRequest = (request, targetDate) => {
   return target >= start && target <= end;
 };
 
-const LeaveStatCard = ({ label, value, helper, icon: Icon, tone }) => (
-  <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-    <div className="flex items-center gap-4">
-      <span className={`grid h-14 w-14 shrink-0 place-items-center rounded-lg ${tone}`}>
-        <Icon className="h-7 w-7" aria-hidden />
+const LeaveStatCard = ({ label, value, helper, icon: Icon, tone, compact = false }) => (
+  <div className={`rounded-lg border border-slate-200 bg-white shadow-sm ${compact ? "p-3" : "p-4"}`}>
+    <div className={`flex items-center ${compact ? "gap-3" : "gap-4"}`}>
+      <span className={`grid shrink-0 place-items-center rounded-lg ${tone} ${compact ? "h-11 w-11" : "h-14 w-14"}`}>
+        <Icon className={compact ? "h-5 w-5" : "h-7 w-7"} aria-hidden />
       </span>
       <div className="min-w-0">
-        <p className="text-sm font-extrabold text-[#111b4f] leading-tight">{label}</p>
-        <p className="mt-1 text-3xl font-extrabold leading-none text-[#111b4f]">{value}</p>
-        {helper && <p className="mt-1 text-sm font-extrabold text-slate-500">{helper}</p>}
+        <p className={`${compact ? "text-xs" : "text-sm"} font-extrabold leading-tight text-[#111b4f]`}>{label}</p>
+        <p className={`mt-1 ${compact ? "text-2xl" : "text-3xl"} font-extrabold leading-none text-[#111b4f]`}>{value}</p>
+        {helper && <p className={`mt-1 ${compact ? "text-xs" : "text-sm"} font-extrabold text-slate-500`}>{helper}</p>}
       </div>
     </div>
   </div>
@@ -571,6 +571,9 @@ const RequestsPage = () => {
 
   useEffect(() => {
     void load();
+    const refreshRequests = () => void load();
+    window.addEventListener("requests:updated", refreshRequests);
+    return () => window.removeEventListener("requests:updated", refreshRequests);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isManagement]);
 
@@ -1897,27 +1900,27 @@ const RequestsPage = () => {
           {!showForm && (
             <>
               {requestType === "ot" && (
-                <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
-                  <LeaveStatCard label="Total OT Hours" value={`${managementStats.totalOtHours}h`} helper="All overtime hours" icon={FiClock} tone="bg-violet-600 text-white" />
-                  <LeaveStatCard label="Pending OT Requests" value={managementStats.pendingOtCount} helper="Awaiting approval" icon={FiClock} tone="bg-amber-500 text-white" />
-                  <LeaveStatCard label="Approved OT Requests" value={managementStats.approvedOtCount} helper={`${managementStats.approvedOtHours}h approved`} icon={FiBarChart2} tone="bg-emerald-600 text-white" />
-                  <LeaveStatCard label="Rejected OT Requests" value={managementStats.rejectedOtCount} helper="Rejected overtime" icon={FiXCircle} tone="bg-rose-500 text-white" />
-                  <LeaveStatCard label="Paid OT" value={`${managementStats.paidOtHours}h`} helper={`${managementStats.paidOtCount} requests`} icon={FiCheckCircle} tone="bg-blue-600 text-white" />
-                  <LeaveStatCard label="OT Cost Summary" value={`$${managementStats.otCostSummary}`} helper="Estimated approved cost" icon={FiUsers} tone="bg-teal-600 text-white" />
+                <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
+                  <LeaveStatCard compact label="Total OT Hours" value={`${managementStats.totalOtHours}h`} helper="All overtime hours" icon={FiClock} tone="bg-violet-600 text-white" />
+                  <LeaveStatCard compact label="Pending OT Requests" value={managementStats.pendingOtCount} helper="Awaiting approval" icon={FiClock} tone="bg-amber-500 text-white" />
+                  <LeaveStatCard compact label="Approved OT Requests" value={managementStats.approvedOtCount} helper={`${managementStats.approvedOtHours}h approved`} icon={FiBarChart2} tone="bg-emerald-600 text-white" />
+                  <LeaveStatCard compact label="Rejected OT Requests" value={managementStats.rejectedOtCount} helper="Rejected overtime" icon={FiXCircle} tone="bg-rose-500 text-white" />
+                  <LeaveStatCard compact label="Paid OT" value={`${managementStats.paidOtHours}h`} helper={`${managementStats.paidOtCount} requests`} icon={FiCheckCircle} tone="bg-blue-600 text-white" />
+                  <LeaveStatCard compact label="OT Cost Summary" value={`$${managementStats.otCostSummary}`} helper="Estimated approved cost" icon={FiUsers} tone="bg-teal-600 text-white" />
                 </div>
               )}
 
               {requestType === "leave" && (
-                <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
-                  <LeaveStatCard label="Employees on Leave Today" value={managementStats.onLeaveToday} helper="Current employees on leave" icon={FiUsers} tone="bg-violet-600 text-white" />
-                  <LeaveStatCard label="Leave Requests Pending Approval" value={managementStats.pending} helper="Awaiting approval" icon={FiClock} tone="bg-amber-500 text-white" />
-                  <LeaveStatCard label="Approved Leave Requests" value={managementStats.approved} helper="Approved leave applications" icon={FiCheckCircle} tone="bg-emerald-600 text-white" />
-                  <LeaveStatCard label="Rejected Leave Requests" value={managementStats.rejected} helper="Rejected applications" icon={FiXCircle} tone="bg-rose-500 text-white" />
-                  <LeaveStatCard label="Leave Utilization Rate" value={`${managementStats.leaveUtilizationRate}%`} helper="Leave usage percentage" icon={FiBarChart2} tone="bg-blue-600 text-white" />
-                  <LeaveStatCard label="Annual Leave Balance Summary" value={managementStats.annualLeaveBalance} helper="Remaining leave balances" icon={FiCalendar} tone="bg-teal-600 text-white" />
-                  <LeaveStatCard label="Leave by Department" value={managementStats.leaveByDepartment.length} helper="Leave distribution by department" icon={FiUsers} tone="bg-indigo-600 text-white" />
-                  <LeaveStatCard label="Monthly Leave Trend" value={`${managementStats.trend.length} months`} helper="Leave utilization trend" icon={FiBarChart2} tone="bg-cyan-600 text-white" />
-                  <LeaveStatCard label="Employees with Low Leave Balance" value={managementStats.lowBalanceEmployees} helper="Remaining balance alert" icon={FiAlertCircle} tone="bg-rose-500 text-white" />
+                <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
+                  <LeaveStatCard compact label="Employees on Leave Today" value={managementStats.onLeaveToday} helper="Current employees on leave" icon={FiUsers} tone="bg-violet-600 text-white" />
+                  <LeaveStatCard compact label="Leave Requests Pending Approval" value={managementStats.pending} helper="Awaiting approval" icon={FiClock} tone="bg-amber-500 text-white" />
+                  <LeaveStatCard compact label="Approved Leave Requests" value={managementStats.approved} helper="Approved leave applications" icon={FiCheckCircle} tone="bg-emerald-600 text-white" />
+                  <LeaveStatCard compact label="Rejected Leave Requests" value={managementStats.rejected} helper="Rejected applications" icon={FiXCircle} tone="bg-rose-500 text-white" />
+                  <LeaveStatCard compact label="Leave Utilization Rate" value={`${managementStats.leaveUtilizationRate}%`} helper="Leave usage percentage" icon={FiBarChart2} tone="bg-blue-600 text-white" />
+                  <LeaveStatCard compact label="Annual Leave Balance Summary" value={managementStats.annualLeaveBalance} helper="Remaining leave balances" icon={FiCalendar} tone="bg-teal-600 text-white" />
+                  <LeaveStatCard compact label="Leave by Department" value={managementStats.leaveByDepartment.length} helper="Leave distribution by department" icon={FiUsers} tone="bg-indigo-600 text-white" />
+                  <LeaveStatCard compact label="Monthly Leave Trend" value={`${managementStats.trend.length} months`} helper="Leave utilization trend" icon={FiBarChart2} tone="bg-cyan-600 text-white" />
+                  <LeaveStatCard compact label="Employees with Low Leave Balance" value={managementStats.lowBalanceEmployees} helper="Remaining balance alert" icon={FiAlertCircle} tone="bg-rose-500 text-white" />
                 </div>
               )}
 
@@ -2736,8 +2739,10 @@ const LeaveReportPanel = ({ rows, tab, stats, onExport }) => {
 };
 
 const LeaveRequestsTable = ({ rows, search, setSearch, onOpen, onUpdate, onMarkPaid, title, recentlyUpdatedId, actionLoadingId, actorRole, currentUserId, approvalFlow }) => (
-  <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-    <div className="flex flex-col gap-3 border-b border-slate-100 p-4 xl:flex-row xl:items-center xl:justify-between">
+  <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm" data-ai-request-target={title === "Request History" ? "request-history" : undefined}>
+    <div
+      className="flex flex-col gap-3 border-b border-slate-100 p-4 xl:flex-row xl:items-center xl:justify-between"
+    >
       <div>
         <h2 className="text-lg font-extrabold text-[#111b4f]">{title}</h2>
         <p className="text-xs font-bold text-slate-400">{rows.length} requests in current view</p>

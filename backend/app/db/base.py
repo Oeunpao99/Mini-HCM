@@ -1,4 +1,5 @@
 from app.db.session import Base
+from app.models.ai_conversation import AiChatMessage, AiConversation, AiPendingAction, AiToolAudit
 from app.models.attendance.models import Attendance
 from app.models.app_setting import AppSetting
 from app.models.company_location import CompanyLocation
@@ -40,6 +41,10 @@ from app.models.user import User
 
 __all__ = [
     "Base",
+    "AiConversation",
+    "AiChatMessage",
+    "AiToolAudit",
+    "AiPendingAction",
     "User",
     "AppSetting",
     "CompanyLocation",

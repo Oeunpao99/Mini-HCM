@@ -3,6 +3,7 @@ import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
 import AdminPage from "./pages/AdminPage";
+import AiAssistantPage from "./pages/AiAssistantPage";
 import AttendancePage from "./pages/AttendancePage";
 import MyAttendancePage from "./pages/MyAttendancePage";
 import DashboardPage from "./pages/DashboardPage";
@@ -211,6 +212,15 @@ const App = () => {
             <Layout>
               <AdminPage />
             </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/ai-assistant"
+        element={
+          <ProtectedRoute>
+            <AiAssistantPage />
           </ProtectedRoute>
         }
       />

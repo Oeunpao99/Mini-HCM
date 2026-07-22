@@ -7,7 +7,7 @@ Steps:
   2. SSH into the server
   3. cd Mini-HCM/backend
   4. Set the DATABASE_URL for the production DB:
-     export DATABASE_URL=postgresql+psycopg2://attendance_user:YOUR_PASSWORD@db:5432/attendance_db
+     export DATABASE_URL=postgresql+psycopg2://attendance_user:YOUR_PASSWORD@db:5432/hcm_ai_db
   5. Run: python migrate_to_prod.py
 """
 
@@ -28,7 +28,7 @@ def main():
     prod_url = os.environ.get("DATABASE_URL")
     if not prod_url:
         print("ERROR: Set DATABASE_URL env var, e.g.:")
-        print('  export DATABASE_URL=postgresql+psycopg2://attendance_user:password@db:5432/attendance_db')
+        print('  export DATABASE_URL=postgresql+psycopg2://attendance_user:password@db:5432/hcm_ai_db')
         sys.exit(1)
 
     if not os.path.exists("./attendance_dev.db"):

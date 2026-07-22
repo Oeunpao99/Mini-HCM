@@ -171,7 +171,6 @@ const personalFields = [
   "bank_name",
   "bank_account_name",
   "bank_account",
-  "profile_photo",
 ];
 
 const PersonalInfoView = ({ employees, onRefresh }) => {

@@ -1,9 +1,13 @@
 import json
+from io import BytesIO
+from pathlib import Path
+from uuid import uuid4
 from calendar import monthrange
 from datetime import date, datetime
 from decimal import Decimal, ROUND_HALF_UP
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
+from PIL import Image, UnidentifiedImageError
 from sqlalchemy import extract, func
 from sqlalchemy.orm import Session
 
@@ -19,6 +23,7 @@ from app.api.deps import (
     require_roles,
     scoped_user_ids,
 )
+from app.core.config import settings
 from app.core.security import get_password_hash
 from app.models.app_setting import AppSetting
 from app.models.attendance.models import Attendance
@@ -49,7 +54,7 @@ from app.schemas.hris import (
     HrisLookupSettingsIn,
     EmployeeMovementRequestIn,
     EmployeeMovementReviewIn,
-    EmployeeProfileIn,
+    HrisEmployeeProfileIn,
     KpiRecordIn,
     PayrollGenerateIn,
     PayrollRecordIn,
@@ -57,6 +62,7 @@ from app.schemas.hris import (
     PerformanceReviewIn,
     PublicHolidayIn,
     ScheduleChangeIn,
+    SelfProfileUpdateIn,
     ShiftScheduleIn,
     TrainingPlanIn,
     TrainingRecordIn,
@@ -134,6 +140,75 @@ def _profile_payload(profile: EmployeeProfile) -> dict:
         "profile_photo": profile.profile_photo,
         "status": profile.employment_status,
     }
+
+
+def _self_profile_payload(profile: EmployeeProfile | None) -> dict | None:
+    if not profile:
+        return None
+    return {
+        "id": profile.id,
+        "user_id": profile.user_id,
+        "phone": profile.phone,
+        "personal_email": profile.personal_email,
+        "address": profile.address,
+        "permanent_address": profile.permanent_address,
+        "emergency_contact_name": profile.emergency_contact_name,
+        "emergency_contact_relation": profile.emergency_contact_relation,
+        "emergency_contact_phone": profile.emergency_contact_phone,
+        "profile_photo": profile.profile_photo,
+        "position": profile.position,
+        "sub_department": profile.sub_department,
+        "job_grade": profile.job_grade,
+        "contract_type": profile.contract_type,
+        "contract_start_date": profile.contract_start_date,
+        "contract_end_date": profile.contract_end_date,
+        "basic_salary": _money(profile.basic_salary),
+        "bank_account": profile.bank_account,
+        "status": profile.employment_status,
+    }
+
+
+def _save_profile_photo(content: bytes, user_id: int) -> tuple[str, Path]:
+    if not content:
+        raise HTTPException(status_code=422, detail="Choose a profile photo to upload")
+    if len(content) > settings.profile_photo_max_bytes:
+        raise HTTPException(status_code=413, detail="Profile photo must be 5 MB or smaller")
+
+    try:
+        image = Image.open(BytesIO(content))
+        image_format = image.format
+        if image_format not in {"JPEG", "PNG"}:
+            raise HTTPException(status_code=422, detail="Profile photos must be JPEG or PNG images")
+        if not image.width or not image.height or image.width * image.height > settings.profile_photo_max_pixels:
+            raise HTTPException(status_code=422, detail="Profile photo dimensions are too large")
+        image.verify()
+        image = Image.open(BytesIO(content))
+        image.load()
+    except HTTPException:
+        raise
+    except (Image.DecompressionBombError, OSError, UnidentifiedImageError) as exc:
+        raise HTTPException(status_code=422, detail="Upload a valid JPEG or PNG image") from exc
+
+    extension = "jpg" if image_format == "JPEG" else "png"
+    filename = f"{user_id}-{uuid4().hex}.{extension}"
+    photo_directory = Path(settings.media_dir) / "profile-photos"
+    photo_directory.mkdir(parents=True, exist_ok=True)
+    destination = photo_directory / filename
+
+    if image_format == "JPEG":
+        image.convert("RGB").save(destination, format="JPEG", quality=90, optimize=True)
+    else:
+        image.save(destination, format="PNG", optimize=True)
+
+    return f"/api/media/profile-photos/{filename}", destination
+
+
+def _delete_previous_profile_photo(previous_photo: str | None, destination: Path) -> None:
+    if not previous_photo or not previous_photo.startswith("/api/media/profile-photos/"):
+        return
+    previous_path = destination.parent / Path(previous_photo).name
+    if previous_path != destination and previous_path.is_file():
+        previous_path.unlink()
 
 
 def _movement_payload(row: EmployeeMovementRequest) -> dict:
@@ -551,7 +626,7 @@ def my_profile(
             "manager_id": actor.manager_id,
             "created_at": actor.created_at,
         },
-        "profile": _profile_payload(profile) if profile else None,
+        "profile": _self_profile_payload(profile),
         "manager": {
             "id": manager.id,
             "emp_code": manager.emp_code,
@@ -567,9 +642,57 @@ def my_profile(
     }
 
 
+@router.patch("/my-profile")
+def update_my_profile(
+    payload: SelfProfileUpdateIn,
+    db: Session = Depends(get_db),
+    actor: User = Depends(get_current_user),
+):
+    changes = payload.model_dump(exclude_unset=True)
+    if not changes:
+        raise HTTPException(status_code=422, detail="Provide at least one profile field to update")
+
+    profile = db.query(EmployeeProfile).filter(EmployeeProfile.user_id == actor.id).first()
+    if not profile:
+        profile = EmployeeProfile(user_id=actor.id)
+        db.add(profile)
+
+    for field, value in changes.items():
+        setattr(profile, field, value)
+
+    db.commit()
+    db.refresh(profile)
+    return {"profile": _self_profile_payload(profile)}
+
+
+@router.post("/my-profile/photo")
+async def upload_my_profile_photo(
+    photo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    actor: User = Depends(get_current_user),
+):
+    content = await photo.read(settings.profile_photo_max_bytes + 1)
+    profile_photo, destination = _save_profile_photo(content, actor.id)
+
+    profile = db.query(EmployeeProfile).filter(EmployeeProfile.user_id == actor.id).first()
+    if not profile:
+        profile = EmployeeProfile(user_id=actor.id)
+        db.add(profile)
+        db.flush()
+
+    previous_photo = profile.profile_photo
+    profile.profile_photo = profile_photo
+    db.commit()
+    db.refresh(profile)
+
+    _delete_previous_profile_photo(previous_photo, destination)
+
+    return {"profile_photo": profile.profile_photo}
+
+
 @router.post("/employees")
 def upsert_employee_profile(
-    payload: EmployeeProfileIn,
+    payload: HrisEmployeeProfileIn,
     db: Session = Depends(get_db),
     actor: User = Depends(require_roles(MANAGEMENT_HR_ROLE)),
 ):
@@ -591,6 +714,33 @@ def upsert_employee_profile(
     db.commit()
     db.refresh(profile)
     return _profile_payload(profile)
+
+
+@router.post("/employees/{user_id}/photo")
+async def upload_employee_profile_photo(
+    user_id: int,
+    photo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_roles(MANAGEMENT_HR_ROLE)),
+):
+    if not db.query(User).filter(User.id == user_id).first():
+        raise HTTPException(status_code=404, detail="User not found")
+
+    content = await photo.read(settings.profile_photo_max_bytes + 1)
+    profile_photo, destination = _save_profile_photo(content, user_id)
+
+    profile = db.query(EmployeeProfile).filter(EmployeeProfile.user_id == user_id).first()
+    if not profile:
+        profile = EmployeeProfile(user_id=user_id)
+        db.add(profile)
+        db.flush()
+
+    previous_photo = profile.profile_photo
+    profile.profile_photo = profile_photo
+    db.commit()
+    db.refresh(profile)
+    _delete_previous_profile_photo(previous_photo, destination)
+    return {"profile_photo": profile.profile_photo}
 
 
 @router.post("/employees/new")
@@ -642,7 +792,7 @@ def create_employee(
         contract_end_date=payload.contract_end_date,
         basic_salary=payload.basic_salary,
         bank_account=payload.bank_account,
-        profile_photo=payload.profile_photo,
+        profile_photo=None,
         employment_status=payload.status,
     )
     db.add(profile)

@@ -40,8 +40,8 @@ function AddEmployeeDrawer({
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      setPhotoError("Image must be 2 MB or smaller.");
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoError("Image must be 5 MB or smaller.");
       return;
     }
 
@@ -50,6 +50,7 @@ function AddEmployeeDrawer({
       setNewEmployee((employee) => ({
         ...employee,
         profile_photo: reader.result,
+        profile_photo_file: file,
         photo_error: "",
       }));
     };
@@ -136,24 +137,25 @@ function AddEmployeeDrawer({
                               Upload Photo
                             </span>
                             <span className="mt-1 block text-xs font-semibold text-slate-500">
-                              JPG, PNG (Max 2MB)
+                              JPG, PNG (Max 5MB)
                             </span>
                           </span>
                         )}
                       </label>
-                      {newEmployee.profile_photo && (
+                      {newEmployee.profile_photo_file && (
                         <button
                           type="button"
                           onClick={() =>
                             setNewEmployee((employee) => ({
                               ...employee,
                               profile_photo: "",
+                              profile_photo_file: null,
                               photo_error: "",
                             }))
                           }
                           className="h-9 rounded-md border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50"
                         >
-                          Remove Photo
+                          Clear Selected Photo
                         </button>
                       )}
                       {newEmployee.photo_error && (

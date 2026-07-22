@@ -1,10 +1,10 @@
 from datetime import date, datetime, time
 from decimal import Decimal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class EmployeeProfileIn(BaseModel):
+class HrisEmployeeProfileIn(BaseModel):
     user_id: int
     phone: str | None = None
     address: str | None = None
@@ -16,8 +16,19 @@ class EmployeeProfileIn(BaseModel):
     contract_end_date: date | None = None
     basic_salary: Decimal = Field(default=0, ge=0)
     bank_account: str | None = None
-    profile_photo: str | None = None
     status: str = "active"
+
+
+class SelfProfileUpdateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    phone: str | None = Field(default=None, max_length=50)
+    personal_email: str | None = Field(default=None, max_length=120)
+    address: str | None = Field(default=None, max_length=255)
+    permanent_address: str | None = Field(default=None, max_length=255)
+    emergency_contact_name: str | None = Field(default=None, max_length=100)
+    emergency_contact_relation: str | None = Field(default=None, max_length=50)
+    emergency_contact_phone: str | None = Field(default=None, max_length=50)
 
 
 class EmployeeCreateIn(BaseModel):
@@ -38,11 +49,10 @@ class EmployeeCreateIn(BaseModel):
     contract_end_date: date | None = None
     basic_salary: Decimal = Field(default=0, ge=0)
     bank_account: str | None = None
-    profile_photo: str | None = None
     status: str = "active"
 
 
-class EmployeeProfileOut(EmployeeProfileIn):
+class EmployeeProfileOut(HrisEmployeeProfileIn):
     id: int
     emp_code: str
     name: str
@@ -857,7 +867,6 @@ class EmployeePersonalInfoIn(BaseModel):
     bank_name: str | None = None
     bank_account_name: str | None = None
     bank_account: str | None = None
-    profile_photo: str | None = None
 
 
 class EmployeeProfileIn(BaseModel):
